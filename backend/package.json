@@ -1,0 +1,50 @@
+{
+  "name": "kontrahent-backend",
+  "version": "1.0.0",
+  "description": "Kontrahent.sk — NestJS Backend API",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:dev": "npm run start:dev:nodemon || npm run start:dev:nest",
+    "start:dev:nodemon": "nodemon -L",
+    "start:dev:nest": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/config": "^3.2.0",
+    "@nestjs/core": "^10.3.0",
+    "@nestjs/platform-express": "^10.3.0",
+    "@nestjs/schedule": "^4.0.0",
+    "@nestjs/swagger": "^7.3.0",
+    "@nestjs/throttler": "^5.1.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "@types/xml2js": "^0.4.14",
+    "adm-zip": "^0.5.17",
+    "axios": "^1.7.0",
+    "bullmq": "^5.4.0",
+    "cheerio": "^1.1.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "ioredis": "^5.3.2",
+    "kontrahent": "file:..",
+    "node-telegram-bot-api": "^0.65.1",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.1",
+    "web-push": "^3.6.7",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.0",
+    "@nestjs/testing": "^10.3.0",
+    "@types/node": "^20.12.0",
+    "@types/node-telegram-bot-api": "^0.64.7",
+    "@types/web-push": "^3.6.3",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.0"
+  }
+}

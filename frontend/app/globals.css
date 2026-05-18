@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --risk-green: #22c55e;
+  --risk-yellow: #eab308;
+  --risk-red: #ef4444;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0d1117; }
+  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+}
+
+@layer components {
+  .risk-green { @apply text-green-400 bg-green-400/10 border-green-400/20; }
+  .risk-yellow { @apply text-yellow-400 bg-yellow-400/10 border-yellow-400/20; }
+  .risk-red { @apply text-red-400 bg-red-400/10 border-red-400/20; }
+
+  .card {
+    @apply bg-slate-900 border border-slate-800 rounded-xl p-6;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2 rounded-lg
+           transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply text-slate-400 hover:text-slate-100 hover:bg-slate-800 px-3 py-2 rounded-lg
+           transition-colors duration-150;
+  }
+
+  .input {
+    @apply w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5
+           text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500
+           focus:ring-1 focus:ring-brand-500 transition-colors;
+  }
+}
