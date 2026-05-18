@@ -1,17 +1,50 @@
 # Kontrahent.sk
 
-Kontrahent.sk is a full-stack app for monitoring Slovak business counterparties.
-It helps users track financial and legal risk signals (debts, bankruptcy/liquidation indicators, court-related events) and receive alerts via Telegram and Web Push.
+[![TypeScript](https://img.shields.io/badge/TypeScript-94.6%25-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![NestJS](https://img.shields.io/badge/Backend-NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![PWA](https://img.shields.io/badge/Experience-PWA-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
 
-## What this project includes
+Kontrahent.sk is a full-stack platform for monitoring Slovak business counterparties.
+It helps users assess financial and legal risk, search and analyze companies, track important changes, and receive alerts through Telegram and Web Push notifications.
 
-- Public company search and browse (FinStat + local cache + registry fallback).
-- Company detail pages with risk score, debt summary, financial indicators, history, and charts.
-- Authenticated watchlist per user (Supabase Auth + RLS-protected data).
-- Alert center with read/unread tracking.
-- Notification channels: Telegram bot messages and Web Push (VAPID).
-- Frontend i18n with runtime language switch (English and Slovak).
-- Background jobs: daily debt-source synchronization and nightly watchlist monitoring.
+## Why this project exists
+
+When working with suppliers, clients, or other business partners, it is important to understand their reliability before problems become expensive. Kontrahent.sk brings together company search, debt and legal-event monitoring, risk indicators, and personal watchlists in one interface.
+
+## Key features
+
+- Public company search with external-source enrichment and local cache fallback.
+- Company detail pages with risk score, debt indicators, legal-event signals, and financial history.
+- Personal watchlist for tracking selected companies over time.
+- Alert center with read/unread management.
+- Telegram and Web Push notification delivery.
+- Daily synchronization of debt-related source data.
+- Background monitoring jobs for watchlist changes.
+- English and Slovak interface localization.
+- Progressive Web App support for installable mobile/desktop experience.
+
+## Product overview
+
+### User-facing areas
+
+- `frontend/app/page.tsx` — landing page
+- `frontend/app/search` — company discovery and search flows
+- `frontend/app/company` — company detail pages
+- `frontend/app/dashboard` — personal monitoring dashboard
+- `frontend/app/notifications` — alerts and notification center
+- `frontend/app/profile` — user profile and preferences
+- `frontend/app/auth` — authentication flows
+
+### Backend domains
+
+- `backend/src/companies` — company search, browse, details, enrichment
+- `backend/src/watchlist` — tracked counterparties per user
+- `backend/src/monitoring` — sync jobs and monitoring logic
+- `backend/src/notifications` — Telegram, push, and alert delivery
+- `backend/src/auth` — authenticated API access
+- `backend/src/supabase` — Supabase integration layer
 
 ## Repository structure
 
@@ -23,28 +56,41 @@ kontrahent/
 |   |-- schema.sql
 |   `-- schema_sync_tables.sql
 |-- docker-compose.yml
-|-- DATA_SOURCES.md
+|-- DATA_SOURCES.md         # Data origin and ingestion logic
 `-- package.json            # Root helper scripts
 ```
 
 ## Tech stack
 
-- Backend: NestJS, TypeScript, Supabase JS, Axios, Cheerio, Nodemon (dev runner)
-- Frontend: Next.js 14, React 18, Tailwind CSS, Recharts, next-pwa, custom i18n layer (EN/SK)
-- Database/Auth: Supabase (PostgreSQL + Auth + RLS)
-- Notifications: Telegram Bot API, Web Push (`web-push`)
-- Scheduling: `@nestjs/schedule` (cron jobs)
+- **Frontend:** Next.js 14, React 18, Tailwind CSS, Recharts, next-pwa
+- **Backend:** NestJS, TypeScript, Axios, Cheerio, BullMQ-ready dependencies
+- **Database/Auth:** Supabase, PostgreSQL, Row Level Security
+- **Notifications:** Telegram Bot API, Web Push
+- **Scheduling:** `@nestjs/schedule`
+- **Localization:** custom i18n layer for English and Slovak
+
+## Data sources
+
+The application aggregates company and risk-related information from multiple sources.
+A full breakdown is available in `DATA_SOURCES.md`.
+
+Current source logic includes:
+
+- Ekosystem Datahub for company search and detail enrichment
+- FinStat public pages for browse, company detail scraping, and fallback discovery
+- Financial Administration debtor exports for tax-debt synchronization
+- Social Insurance debtor exports for social-debt synchronization
 
 ## Prerequisites
 
 - Node.js 20+ (recommended)
 - npm 10+
 - Supabase project (URL + keys)
-- Optional: Docker Desktop 4+ (for containerized full stack)
+- Optional: Docker Desktop 4+ for containerized local development
 
 ## 1. Install dependencies
 
-From repository root:
+From the repository root:
 
 ```bash
 npm install
@@ -58,13 +104,11 @@ npm --prefix frontend install
 2. Run `supabase/schema.sql`.
 3. Run `supabase/schema_sync_tables.sql`.
 4. In Supabase Auth settings, add local redirect URL `http://localhost:3000/auth/callback`.
-5. If you want Google OAuth login, enable Google provider in Supabase Auth.
+5. If needed, enable Google OAuth in Supabase Auth.
 
 ## 3. Configure environment variables
 
 ### Backend
-
-Copy file:
 
 ```bash
 cp backend/.env.example backend/.env
@@ -80,7 +124,7 @@ Required for normal operation:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `FRONTEND_URL` (default local frontend URL)
+- `FRONTEND_URL`
 
 Important optional variables:
 
@@ -89,11 +133,9 @@ Important optional variables:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_POLLING_ENABLED`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`
-- `REDIS_URL` (currently optional in runtime path)
+- `REDIS_URL`
 
 ### Frontend
-
-Copy file:
 
 ```bash
 cp frontend/.env.local.example frontend/.env.local
@@ -109,8 +151,8 @@ Required:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_API_URL` (for local backend: `http://localhost:3001`)
-- `NEXT_PUBLIC_SITE_URL` (for local frontend: `http://localhost:3000`)
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_SITE_URL`
 
 ## 4. Run the project
 
@@ -131,56 +173,13 @@ npm run start:dev:backend
 npm run start:dev:frontend
 ```
 
-Backend `start:dev` now uses `nodemon` with TypeScript execution (`ts-node`) and automatic restart on file changes.
+## Run with Docker
 
-The root `npm run start:dev` still starts backend only.
+The repository includes a local Docker setup for:
 
-## Run with Docker (full stack)
-
-The repository now includes a fully configured Docker setup for:
-
-- `frontend` (Next.js dev server with hot reload)
-- `backend` (NestJS dev server with hot reload)
-- `redis` (local Redis service)
-
-### Docker prerequisites
-
-1. Create env files (if not already created):
-
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.local.example frontend/.env.local
-```
-
-PowerShell alternative:
-
-```powershell
-Copy-Item backend/.env.example backend/.env
-Copy-Item frontend/.env.local.example frontend/.env.local
-```
-
-2. Verify these local values:
-
-| File | Variable | Recommended local value |
-|---|---|---|
-| `backend/.env` | `FRONTEND_URL` | `http://localhost:3000` |
-| `frontend/.env.local` | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` |
-| `frontend/.env.local` | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
-
-If default ports are already occupied, override host ports at runtime:
-
-```bash
-BACKEND_PORT=3101 FRONTEND_PORT=3100 REDIS_PORT=6380 docker compose up --build
-```
-
-PowerShell alternative:
-
-```powershell
-$env:BACKEND_PORT='3101'
-$env:FRONTEND_PORT='3100'
-$env:REDIS_PORT='6380'
-docker compose up --build
-```
+- `frontend` — Next.js dev server with hot reload
+- `backend` — NestJS dev server with hot reload
+- `redis` — local Redis service
 
 ### Start containers
 
@@ -188,59 +187,30 @@ docker compose up --build
 docker compose up --build
 ```
 
-### Open app
+### Open locally
 
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:3001`
 - Swagger (dev only): `http://localhost:3001/api/docs`
 - Redis: `localhost:6379`
 
-If you overrode ports, use your custom values instead.
-
-### Useful Docker commands
-
-```bash
-# Stop and remove containers
-docker compose down
-
-# Follow logs for all services
-docker compose logs -f
-
-# Rebuild after Dockerfile/dependency changes
-docker compose up --build --force-recreate
-```
-
-Notes:
-
-- Source code is mounted into containers, so backend/frontend reload on code changes.
-- Named volumes are used for `node_modules` and Redis data.
-- File watching is configured for Docker-on-Windows compatibility (polling enabled).
-
 ## Useful scripts
 
 | Scope | Command | Description |
 |---|---|---|
 | Root | `npm run start:dev` | Start backend dev server via nodemon |
-| Root | `npm run start:dev:backend` | Start backend dev server via nodemon |
+| Root | `npm run start:dev:backend` | Start backend dev server |
 | Root | `npm run start:dev:frontend` | Start frontend dev server |
 | Root | `npm run build` | Build backend + frontend |
-| Backend | `npm --prefix backend run start:dev` | Start backend with nodemon (`-L`, ts-node, auto-restart) |
-| Backend | `npm --prefix backend run start:dev:nest` | Start backend with Nest native watcher |
 | Backend | `npm --prefix backend run build` | Build backend |
 | Backend | `npm --prefix backend run test` | Run backend tests |
 | Frontend | `npm --prefix frontend run dev` | Start frontend dev server |
 | Frontend | `npm --prefix frontend run build` | Build frontend |
 | Frontend | `npm --prefix frontend run lint` | Run frontend lint |
 
-## 5. Local URLs
-
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:3001`
-- Swagger (dev only): `http://localhost:3001/api/docs`
-
 ## API overview
 
-Public endpoints:
+### Public endpoints
 
 - `GET /companies/search?q=...&page=...`
 - `GET /companies/browse?...filters`
@@ -248,7 +218,7 @@ Public endpoints:
 - `GET /companies/:ico/history`
 - `GET /monitoring/status`
 
-Authenticated endpoints (Bearer token from Supabase session):
+### Authenticated endpoints
 
 - `GET /watchlist`
 - `POST /watchlist`
@@ -265,19 +235,19 @@ Authenticated endpoints (Bearer token from Supabase session):
 
 ## Scheduled jobs
 
-Configured in backend and executed while backend process is running:
+Configured in backend and executed while the backend process is running:
 
-- `0 2 * * *` (Europe/Bratislava): debt-source synchronization (`DataSyncService`)
-- `0 3 * * *` (Europe/Bratislava): nightly watchlist monitoring and alert dispatch (`MonitoringService`)
+- `0 2 * * *` (`Europe/Bratislava`) — debt-source synchronization via `DataSyncService`
+- `0 3 * * *` (`Europe/Bratislava`) — nightly watchlist monitoring and alert dispatch via `MonitoringService`
 
 ## Notifications setup notes
 
 ### Telegram
 
 1. Create a bot with `@BotFather`.
-2. Put token into `TELEGRAM_BOT_TOKEN`.
+2. Put the token into `TELEGRAM_BOT_TOKEN`.
 3. Send `/start` to your bot and use the returned `chat_id`.
-4. Connect `chat_id` in app Notifications/Profile UI.
+4. Connect the `chat_id` in the app UI.
 
 ### Web Push
 
@@ -287,18 +257,29 @@ Configured in backend and executed while backend process is running:
 npx web-push generate-vapid-keys
 ```
 
-2. Put keys and contact email into backend `.env`.
-3. In UI, enable browser notifications.
+2. Put the keys and contact email into backend `.env`.
+3. Enable browser notifications in the UI.
 
 ## PWA behavior
 
 - PWA is enabled in production builds.
-- PWA is disabled in development (`next-pwa` config), to avoid service worker cache conflicts while iterating locally.
+- PWA is disabled in development to avoid service worker cache conflicts during local iteration.
 
-## Localization (i18n)
+## Localization
 
-- Supported UI languages: English (`en`) and Slovak (`sk`).
-- Runtime language switcher is available in the bottom-right corner of the app.
-- Selected language is persisted in browser `localStorage` key `kontrahent.locale`.
-- Translation dictionaries live in `frontend/lib/i18n/messages.ts`.
-- Date and currency formatting are locale-aware (`en-US` / `sk-SK`) across dashboard, search, notifications, and company detail views.
+- Supported UI languages: English (`en`) and Slovak (`sk`)
+- Runtime language switcher is available in the app
+- Selected language is stored in `localStorage` under `kontrahent.locale`
+
+## Development notes
+
+- Main application modules are wired in `backend/src/app.module.ts`.
+- Repository-wide helper scripts live in the root `package.json`.
+- App install metadata is configured in `frontend/public/manifest.json`.
+
+## Roadmap ideas
+
+- Add screenshots and product walkthrough GIFs to the README
+- Add repository topics and social preview image in GitHub settings
+- Add license metadata
+- Add CI status badges once workflows are configured
