@@ -5,6 +5,7 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development', // Disable PWA completely in dev to stop SW caching conflicts and logs, or set disableDevLogs: true if you want to keep testing PWA but hide logs.
   disableDevLogs: true,
+  buildExcludes: [/app-build-manifest\.json$/, /middleware-manifest\.json$/],
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*\/api\/.*/i, // Matches our backend API
