@@ -78,7 +78,7 @@ export default function LandingPage() {
                 {t('landing.tryFree')} <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/dashboard?demo=true" className="btn-ghost px-8 py-3 text-base border border-slate-800">
-                {t('landing.demoDashboard')} ->
+                {t('landing.demoDashboard')}
               </Link>
             </>
           )}
