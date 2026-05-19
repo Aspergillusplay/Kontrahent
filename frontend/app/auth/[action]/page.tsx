@@ -39,7 +39,7 @@ export default function AuthPage({ params }: { params: { action: string } }) {
           password,
           options: {
             data: { full_name: fullName },
-            emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         if (error) throw error;
@@ -55,7 +55,7 @@ export default function AuthPage({ params }: { params: { action: string } }) {
   const handleGoogleSignIn = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   };
 
