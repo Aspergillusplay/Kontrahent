@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shield, Plus, Bell, Search, RefreshCw, LogOut, Loader2, X, Zap } from 'lucide-react';
 import { getSupabase } from '../../lib/supabase';
@@ -12,7 +12,6 @@ import { useI18n } from '../../lib/i18n/provider';
 export default function DashboardPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = getSupabase();
 
   const [watchlist, setWatchlist] = useState<any[]>([]);
@@ -23,13 +22,16 @@ export default function DashboardPage() {
   const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    const isDemoFromQuery = typeof window !== 'undefined'
+      && new URLSearchParams(window.location.search).get('demo') === 'true';
+
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user && searchParams.get('demo') === 'true') {
+      if (!data.user && isDemoFromQuery) {
         setIsDemo(true);
       }
       loadData(!!data.user);
     });
-  }, [searchParams]);
+  }, []);
 
   const loadData = async (hasAuth: boolean) => {
     setLoading(true);
