@@ -1,11 +1,12 @@
 import { AlertCircle, Bell, Loader2 } from 'lucide-react';
 import { toIntlLocale } from '../../../lib/i18n/formatters';
+import type { AppLocale } from '../../../lib/i18n/config';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 type NotificationsAlertsPanelProps = {
   t: TranslateFn;
-  locale: string;
+  locale: AppLocale;
   alerts: any[];
   loading: boolean;
   onMarkAllRead: () => Promise<void>;
