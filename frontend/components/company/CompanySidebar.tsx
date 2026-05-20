@@ -90,7 +90,7 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
             icon={<ShieldCheck className="w-4 h-4" />}
           />
 
-          <div className="grid grid-cols-2 gap-3 mt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
             <div
               className={`p-3 rounded-lg text-center border ${
                 (company.events_detail?.payment_orders || 0) > 0
@@ -113,7 +113,7 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <BinaryIndicatorCard label={t('company.indicatorDebts')} value={!!company.dlhy_nedoplatky} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
             <BinaryIndicatorCard label={t('company.indicatorState')} value={!!company.pohladavky_statu} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
             <div className="bg-slate-900/50 p-3 rounded-lg text-center border border-slate-800/50">

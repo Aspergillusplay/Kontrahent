@@ -209,8 +209,43 @@ export class CompaniesService {
       salesFrom,
       query: searchQuery,
     } = params;
+    const queryText = this.normalizeSearchText(searchQuery);
+    const shouldAugmentWithLocal =
+      queryText.length >= 2 &&
+      !activity &&
+      !region &&
+      !legalForm &&
+      !employees &&
+      !salesFrom;
 
     this.logger.log(`Browsing FinStat database: sort=${sort}, page=${page}, activity=${activity}, region=${region}`);
+
+    if (shouldAugmentWithLocal) {
+      const quickMatches = await this.search(queryText, page);
+      if (quickMatches.length > 0) {
+        const companies = quickMatches.map((row) => ({
+          ico: this.normalizeSearchIco(row.ico),
+          name: row.name,
+          city: row.city || '',
+          region: '',
+          employees: '',
+          sales: '',
+          creation_date: '',
+          finstat_url: `https://www.finstat.sk/${this.normalizeSearchIco(row.ico)}`,
+        }));
+
+        const hasNextPage = quickMatches.length >= 20;
+        const total = hasNextPage ? page * 20 + 1 : (page - 1) * 20 + quickMatches.length;
+
+        return {
+          companies,
+          total,
+          page,
+          perPage: 20,
+          totalPages: hasNextPage ? page + 1 : Math.max(page, 1),
+        };
+      }
+    }
 
     try {
       const urlParams = new URLSearchParams();
@@ -326,13 +361,48 @@ export class CompaniesService {
       });
 
       const perPage = 20;
-      const totalPages = total > 0 ? Math.ceil(total / perPage) : 1;
 
-      this.logger.log(`FinStat browse: found ${dedupedCompanies.length} companies, total=${total}`);
+      const localMatches = shouldAugmentWithLocal
+        ? await this.searchLocalCompaniesForBrowse(queryText, 240)
+        : [];
+
+      if (total === 0 && localMatches.length > 0) {
+        const start = (Math.max(page, 1) - 1) * perPage;
+        const companiesPage = localMatches.slice(start, start + perPage);
+        const totalPages = Math.ceil(localMatches.length / perPage);
+
+        this.logger.log(
+          `FinStat browse fallback to local matches: ${localMatches.length} total, page ${page}`,
+        );
+
+        return {
+          companies: companiesPage,
+          total: localMatches.length,
+          page,
+          perPage,
+          totalPages,
+        };
+      }
+
+      const mergedCompanies =
+        shouldAugmentWithLocal && page === 1
+          ? this.mergeBrowseCompanies(localMatches, dedupedCompanies).slice(0, perPage)
+          : dedupedCompanies;
+
+      const effectiveTotal =
+        total > 0
+          ? Math.max(total, mergedCompanies.length)
+          : mergedCompanies.length;
+
+      const totalPages = effectiveTotal > 0 ? Math.ceil(effectiveTotal / perPage) : 1;
+
+      this.logger.log(
+        `FinStat browse: found ${mergedCompanies.length} companies (local augment: ${localMatches.length}), total=${effectiveTotal}`,
+      );
 
       return {
-        companies: dedupedCompanies,
-        total,
+        companies: mergedCompanies,
+        total: effectiveTotal,
         page,
         perPage,
         totalPages,
@@ -369,6 +439,105 @@ export class CompaniesService {
       ico: this.normalizeSearchIco(row.ico),
       source: 'local',
     }));
+  }
+
+  private async searchLocalCompaniesForBrowse(query: string, limit: number): Promise<BrowseCompanyItem[]> {
+    const q = this.normalizeSearchText(query);
+    if (q.length < 2) return [];
+
+    const digits = q.replace(/\D/g, '');
+    const escapedText = this.escapeSupabaseFilterValue(q);
+    const escapedDigits = this.escapeSupabaseFilterValue(digits);
+
+    let queryBuilder = this.supabase.db
+      .from('companies')
+      .select('ico, name, city, address')
+      .limit(limit);
+
+    if (digits.length >= 2) {
+      queryBuilder =
+        q === digits
+          ? queryBuilder.or(`ico.ilike.${escapedDigits}%,ico.ilike.%${escapedDigits}%`)
+          : queryBuilder.or(
+              `ico.ilike.${escapedDigits}%,name.ilike.%${escapedText}%,city.ilike.%${escapedText}%,address.ilike.%${escapedText}%`,
+            );
+    } else {
+      queryBuilder = queryBuilder.or(
+        `name.ilike.%${escapedText}%,city.ilike.%${escapedText}%,address.ilike.%${escapedText}%`,
+      );
+    }
+
+    const { data } = await queryBuilder;
+    if (!Array.isArray(data) || data.length === 0) return [];
+
+    const queryNorm = this.normalizeLookup(q);
+    const scored = data
+      .map((row) => {
+        const ico = this.normalizeSearchIco(row.ico);
+        const name = this.normalizeSearchText(row.name);
+        const city = this.normalizeSearchText(row.city);
+        const address = this.normalizeSearchText(row.address);
+        const nameNorm = this.normalizeLookup(name);
+        const cityNorm = this.normalizeLookup(city);
+
+        let score = 0;
+        if (digits.length >= 2) {
+          if (ico.startsWith(digits)) score += 300;
+          else if (ico.includes(digits)) score += 180;
+        }
+
+        if (nameNorm.startsWith(queryNorm)) score += 120;
+        else if (nameNorm.includes(queryNorm)) score += 80;
+
+        if (cityNorm.startsWith(queryNorm)) score += 35;
+        else if (cityNorm.includes(queryNorm)) score += 20;
+
+        return {
+          score,
+          item: {
+            ico,
+            name,
+            city,
+            region: '',
+            employees: '',
+            sales: '',
+            creation_date: '',
+            finstat_url: `https://www.finstat.sk/${ico}`,
+          } satisfies BrowseCompanyItem,
+        };
+      })
+      .filter((row) => !!row.item.ico && !!row.item.name)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.item.name !== b.item.name) return a.item.name.localeCompare(b.item.name, 'sk');
+        return a.item.ico.localeCompare(b.item.ico);
+      });
+
+    return scored.map((row) => row.item);
+  }
+
+  private mergeBrowseCompanies(primary: BrowseCompanyItem[], secondary: BrowseCompanyItem[]): BrowseCompanyItem[] {
+    const merged: BrowseCompanyItem[] = [];
+    const seen = new Set<string>();
+
+    for (const row of [...primary, ...secondary]) {
+      const ico = this.normalizeSearchIco(row.ico);
+      if (!ico || seen.has(ico)) continue;
+
+      seen.add(ico);
+      merged.push({
+        ...row,
+        ico,
+      });
+    }
+
+    return merged;
+  }
+
+  private escapeSupabaseFilterValue(value: string): string {
+    return String(value || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/,/g, '\\,');
   }
 
   private async searchViaFinStat(query: string, page: number, limit: number): Promise<CompanySearchResult[]> {

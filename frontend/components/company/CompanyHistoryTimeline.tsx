@@ -20,7 +20,7 @@ export default function CompanyHistoryTimeline({ history }: CompanyHistoryTimeli
   return (
     <div className="card border-slate-800">
       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">{t('company.historyChanges')}</h3>
-      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-slate-800">
+      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 sm:pr-4 scrollbar-thin scrollbar-thumb-slate-800">
         {history.map((entry) => (
           <div
             key={entry.id}
@@ -42,13 +42,13 @@ export default function CompanyHistoryTimeline({ history }: CompanyHistoryTimeli
               }`}
             />
             <div className="flex-1">
-              <div className="flex justify-between items-start mb-1">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-1">
                 <span className="text-sm font-bold text-slate-200">{entry.field_name}</span>
                 <span className="text-[10px] font-mono text-slate-500 bg-slate-950 px-2 py-0.5 rounded uppercase">
                   {format(new Date(entry.changed_at), 'd.M.yy HH:mm', { locale: toDateFnsLocale(locale) })}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-slate-400 line-through opacity-50">{entry.old_value || '—'}</span>
                 <TrendingUp className="w-3 h-3 text-slate-600 rotate-90" />
                 <span
