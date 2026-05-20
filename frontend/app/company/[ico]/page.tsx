@@ -1,18 +1,16 @@
-﻿'use client';
+﻿"use client";
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Building2, Loader2 } from 'lucide-react';
-import CompanyBreakdownSection from '../../../components/company/CompanyBreakdownSection';
-import CompanyHeader from '../../../components/company/CompanyHeader';
-import CompanyHistoryTimeline from '../../../components/company/CompanyHistoryTimeline';
-import CompanyOverview from '../../../components/company/CompanyOverview';
-import CompanySidebar from '../../../components/company/CompanySidebar';
-import { resolveDebtSummary } from '../../../components/company/company-view.utils';
+import {
+  CompanyBackHeader,
+  CompanyDetailsContent,
+  CompanyLoadingState,
+  CompanyNotFoundState,
+} from './components/CompanyPageSections';
 import { api } from '../../../lib/api';
 import { CompanyDetails, CompanyHistoryItem } from '../../../lib/company-types';
-import { getSupabase } from '../../../lib/supabase';
 import { useI18n } from '../../../lib/i18n/provider';
+import { getSupabase } from '../../../lib/supabase';
 
 export default function CompanyPage({ params }: { params: { ico: string } }) {
   const { t } = useI18n();
@@ -113,51 +111,25 @@ export default function CompanyPage({ params }: { params: { ico: string } }) {
     setInWatchlist(true);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!company) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-center px-4">
-        <div>
-          <Building2 className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-          <h2 className="text-lg font-medium text-slate-400">{t('company.notFound')}</h2>
-          <p className="text-slate-500 text-sm mt-1">{t('company.notFoundDescription', { ico: params.ico })}</p>
-          <Link href="/dashboard" className="btn-primary inline-block mt-4">
-            {t('common.back')}
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const debtSummary = resolveDebtSummary(company);
-
   return (
     <div className="min-h-screen bg-slate-950">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        <CompanyHeader
+      <CompanyBackHeader t={t} />
+
+      {loading ? (
+        <CompanyLoadingState />
+      ) : !company ? (
+        <CompanyNotFoundState t={t} ico={params.ico} />
+      ) : (
+        <CompanyDetailsContent
           company={company}
+          history={history}
           isDemo={isDemo}
           inWatchlist={inWatchlist}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           onAddToWatchlist={handleAddToWatchlist}
         />
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <CompanyOverview company={company} />
-          <CompanySidebar company={company} debtSummary={debtSummary} />
-        </div>
-
-        <CompanyBreakdownSection company={company} />
-        <CompanyHistoryTimeline history={history} />
-      </div>
+      )}
     </div>
   );
 }
