@@ -50,8 +50,15 @@ export function SearchHeaderBar({
               className="input pl-9 py-2 text-sm"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary py-2 px-4">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.search')}
+          <button type="submit" disabled={loading} className="btn-primary py-2 px-3 sm:px-4 shrink-0 inline-flex items-center justify-center">
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Search className="w-4 h-4 sm:hidden" />
+                <span className="hidden sm:inline">{t('common.search')}</span>
+              </>
+            )}
           </button>
         </form>
       }
@@ -141,12 +148,12 @@ export function SearchMainContent({
       </div>
 
       <div className="mb-6 space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+          <div className="relative w-full sm:w-auto">
             <select
               value={sort}
               onChange={(e) => applyFilters({ sort: e.target.value, page: 1 })}
-              className="appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors"
+              className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors"
             >
               {sortOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -160,7 +167,7 @@ export function SearchMainContent({
           <select
             value={region}
             onChange={(e) => applyFilters({ region: e.target.value, page: 1 })}
-            className="appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
+            className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
           >
             {regionOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -172,7 +179,7 @@ export function SearchMainContent({
           <select
             value={legalForm}
             onChange={(e) => applyFilters({ legalForm: e.target.value, page: 1 })}
-            className="appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
+            className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
           >
             {legalFormOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -184,7 +191,7 @@ export function SearchMainContent({
           <select
             value={employees}
             onChange={(e) => applyFilters({ employees: e.target.value, page: 1 })}
-            className="appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
+            className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
           >
             {employeesOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -196,7 +203,7 @@ export function SearchMainContent({
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
-              className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/15 border border-red-400/20 rounded-lg transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/15 border border-red-400/20 rounded-lg transition-colors"
             >
               <X className="w-3.5 h-3.5" /> {t('common.clearFilters')}
             </button>
@@ -284,7 +291,7 @@ export function SearchMainContent({
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-1 text-xs text-slate-400">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-slate-400">
                   <span className="font-mono text-brand-400">ICO: {c.ico}</span>
                   <span>
                     {c.city || ''}
@@ -302,7 +309,8 @@ export function SearchMainContent({
           </div>
 
           {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-1.5">
+            <div className="mt-8 overflow-x-auto pb-1">
+              <div className="flex min-w-max items-center justify-start sm:justify-center gap-1.5 px-1">
               <button
                 onClick={() => handlePageChange(1)}
                 disabled={page === 1}
@@ -352,6 +360,7 @@ export function SearchMainContent({
               >
                 <ChevronsRight className="w-4 h-4" />
               </button>
+              </div>
             </div>
           )}
         </>

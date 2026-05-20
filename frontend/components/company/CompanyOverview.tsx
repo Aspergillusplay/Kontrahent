@@ -51,7 +51,7 @@ function HistoryChartCard({ title, iconClass, gradientId, stroke, data }: Histor
       <div className="flex-1 min-h-0">
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 20, right: 40, left: 40, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 20, right: 16, left: 16, bottom: 0 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={stroke} stopOpacity={0.2} />
@@ -168,10 +168,10 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {metrics.map((metric) => (
           <div key={metric.label} className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">
-            <div className={`text-base font-bold font-mono ${metric.color || 'text-slate-100'}`}>{metric.value}</div>
+            <div className={`text-base font-bold font-mono break-words ${metric.color || 'text-slate-100'}`}>{metric.value}</div>
             <div className="text-[10px] uppercase font-bold text-slate-500 mt-1 tracking-wider">{metric.label}</div>
           </div>
         ))}

@@ -41,12 +41,12 @@ export default function CompanyHeader({
   return (
     <>
       {isDemo && (
-        <div className="bg-brand-600 px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-4">
+        <div className="bg-brand-600 px-4 py-2 text-center text-sm font-medium flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
           <Zap className="w-4 h-4 animate-pulse" />
           <span>{t('company.demoBanner')}</span>
           <Link
             href="/auth/register"
-            className="bg-white text-brand-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-slate-100 transition-colors"
+            className="bg-white text-brand-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-white/90 transition-colors"
           >
             {t('nav.startFree')}
           </Link>
@@ -78,7 +78,7 @@ export default function CompanyHeader({
               )}
             </div>
 
-            <h1 className="text-3xl font-bold mb-1 leading-tight tracking-tight text-white">{company.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1 leading-tight tracking-tight text-slate-100">{company.name}</h1>
             {company.historical_name && (
               <div className="flex items-center gap-2 text-slate-500 mb-4 text-xs font-medium">
                 <History className="w-3 h-3" />
@@ -108,17 +108,17 @@ export default function CompanyHeader({
             </div>
           </div>
 
-          <div className="flex gap-2 justify-center flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2 justify-center w-full sm:w-auto">
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="btn-ghost flex items-center gap-2 text-sm h-10 px-4"
+              className="btn-ghost flex items-center justify-center gap-2 text-sm h-10 px-4 w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               {t('company.refresh')}
             </button>
             {!inWatchlist && (
-              <button onClick={onAddToWatchlist} className="btn-primary text-sm h-10 px-4">
+              <button onClick={onAddToWatchlist} className="btn-primary text-sm h-10 px-4 w-full sm:w-auto">
                 + {t('company.watch')}
               </button>
             )}

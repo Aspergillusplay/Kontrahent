@@ -16,7 +16,8 @@ export default function NotificationsHeader({ t }: NotificationsHeaderProps) {
       right={
         <Link href="/dashboard" className="flex items-center gap-2 btn-ghost text-sm">
           <ArrowLeft className="w-4 h-4" />
-          <span>{t('notifications.back')}</span>
+          <span className="sr-only">{t('notifications.back')}</span>
+          <span className="hidden sm:inline">{t('notifications.back')}</span>
         </Link>
       }
     />

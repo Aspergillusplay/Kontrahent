@@ -203,7 +203,9 @@ function SearchContent() {
         setSearchInput={setSearchInput}
         onSearchSubmit={(e) => {
           e.preventDefault();
-          applyFilters({ q: searchInput, page: 1 });
+          const nextQuery = searchInput.trim();
+          setSearchInput(nextQuery);
+          applyFilters({ q: nextQuery, page: 1 });
         }}
         user={user}
       />

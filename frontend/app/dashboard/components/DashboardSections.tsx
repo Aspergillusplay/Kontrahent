@@ -10,12 +10,12 @@ type DashboardDemoBannerProps = {
 
 export function DashboardDemoBanner({ t }: DashboardDemoBannerProps) {
   return (
-    <div className="bg-brand-600 px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-4">
+    <div className="bg-brand-600 px-4 py-2 text-center text-sm font-medium flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
       <Zap className="w-4 h-4 animate-pulse" />
       <span>{t('dashboard.demoBanner')}</span>
       <Link
         href="/auth/register"
-        className="bg-white text-brand-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-slate-100 transition-colors"
+        className="bg-white text-brand-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-white/90 transition-colors"
       >
         {t('nav.startFree')}
       </Link>
@@ -47,8 +47,9 @@ export function DashboardHeaderCenterSearch({
           className="input pl-9 py-2 text-sm"
         />
       </div>
-      <button type="submit" disabled={!searchQuery.trim()} className="btn-primary py-2 px-3">
-        <Search className="w-4 h-4" />
+      <button type="submit" disabled={!searchQuery.trim()} className="btn-primary py-2 px-3 shrink-0 inline-flex items-center justify-center">
+        <Search className="w-4 h-4 sm:hidden" />
+        <span className="hidden sm:inline">{t('common.search')}</span>
       </button>
     </form>
   );
@@ -96,11 +97,11 @@ export function DashboardTitleSection({ t }: DashboardTitleSectionProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
       <div>
-        <h1 className="text-3xl font-bold text-slate-100 tracking-tight">{t('dashboard.myWatchlist')}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-100 tracking-tight">{t('dashboard.myWatchlist')}</h1>
         <p className="text-slate-500">{t('dashboard.watchlistOverview')}</p>
       </div>
       <div className="flex items-center gap-3">
-        <Link href="/search" className="btn-primary flex items-center gap-2 px-5 py-2.5">
+        <Link href="/search" className="btn-primary w-full sm:w-auto justify-center flex items-center gap-2 px-5 py-2.5">
           <Plus className="w-4 h-4" /> {t('dashboard.searchAndAdd')}
         </Link>
       </div>
@@ -131,18 +132,18 @@ export function DashboardSummarySection({
 
   return (
     <div className="mb-8">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">{t('dashboard.portfolioStatus')}</h2>
         <button
           onClick={onRefreshAll}
           disabled={batchRefreshing}
-          className="btn-ghost text-xs flex items-center gap-2 text-brand-400 hover:text-brand-300 px-2 py-1 border border-slate-800"
+          className="btn-ghost w-full sm:w-auto justify-center text-xs flex items-center gap-2 text-brand-400 hover:text-brand-300 px-2 py-1 border border-slate-800"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${batchRefreshing ? 'animate-spin' : ''}`} />
           {batchRefreshing ? t('dashboard.refreshing') : t('dashboard.refreshAll')}
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: t('dashboard.critical'), count: riskCounts.red, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
           {
@@ -186,7 +187,7 @@ export function DashboardCompaniesList({ t, loading, watchlist, onRemove }: Dash
         <Shield className="w-16 h-16 text-slate-800 mx-auto mb-6" />
         <h3 className="text-xl font-bold text-slate-200 mb-2">{t('dashboard.emptyTitle')}</h3>
         <p className="text-slate-500 text-sm max-w-sm mx-auto mb-8">{t('dashboard.emptyDescription')}</p>
-        <Link href="/search" className="btn-primary px-8 py-3">
+        <Link href="/search" className="btn-primary px-8 py-3 inline-flex justify-center w-full sm:w-auto">
           {t('dashboard.findFirst')}
         </Link>
       </div>
