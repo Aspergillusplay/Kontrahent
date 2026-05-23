@@ -18,7 +18,6 @@ import { parseStringPromise } from 'xml2js';
  * Sources:
  *  1. Financial Administration SR - tax debtors (XML/ZIP)
  *  2. Social Insurance Agency - social debtors (CSV/ZIP)
- *  3. Business registry data via Ekosystem API
  */
 @Injectable()
 export class DataSyncService {
@@ -38,12 +37,8 @@ export class DataSyncService {
     TAX_DEBTORS_CSV_LEGACY:
       'https://www.financnasprava.sk/_img/pfsedit/Dokumenty_PFS/Zverejnovanie_dlznikov/zoznam_dlznikov_sf.csv',
 
-    // Social Insurance Agency page with debtor archive links
-    SOCIAL_DEBTORS_PAGE:
-      'https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov',
-
-    // Direct fallback ZIP link (can change over time)
-    SOCIAL_DEBTORS_ZIP_FALLBACK:
+    // Direct official ZIP/CSV download URL
+    SOCIAL_DEBTORS_ZIP:
       'https://www.socpoist.sk/api/idsp/download/7946c279-f0b4-451a-b199-a317f675e6cf',
   } as const;
 
@@ -220,13 +215,7 @@ export class DataSyncService {
     this.logger.log('📥 Downloading Social Insurance debtors list...');
 
     try {
-      const url = await this.findSocialDebtorsUrl();
-      if (!url) {
-        this.logger.warn('Social Insurance debtors URL was not found');
-        return 0;
-      }
-
-      const { data: payload, headers } = await axios.get(url, {
+      const { data: payload, headers } = await axios.get(this.SOURCES.SOCIAL_DEBTORS_ZIP, {
         timeout: 30000,
         responseType: 'arraybuffer',
       });
@@ -234,7 +223,7 @@ export class DataSyncService {
       const contentType = String(headers?.['content-type'] || '').toLowerCase();
       let csvText = '';
 
-      if (contentType.includes('zip') || url.toLowerCase().endsWith('.zip')) {
+      if (contentType.includes('zip') || this.SOURCES.SOCIAL_DEBTORS_ZIP.toLowerCase().endsWith('.zip')) {
         csvText = this.extractFirstTextFileFromZip(payload, ['.csv', '.txt']);
       } else {
         csvText = Buffer.from(payload).toString('utf8');
@@ -254,29 +243,6 @@ export class DataSyncService {
       this.logger.error(`SP sync error: ${err.message}`);
       return 0;
     }
-  }
-
-  /**
-   * Resolves the current Social Insurance debtors ZIP/CSV URL from the source page.
-   */
-  private async findSocialDebtorsUrl(): Promise<string | null> {
-    try {
-      const { data: html } = await axios.get(this.SOURCES.SOCIAL_DEBTORS_PAGE, {
-        timeout: 10000,
-        responseType: 'text',
-      });
-
-      const match = html.match(/href=["']([^"']*\/api\/idsp\/download\/[^"']+)["']/i);
-      if (match?.[1]) {
-        return match[1].startsWith('http')
-          ? match[1]
-          : `https://www.socpoist.sk${match[1]}`;
-      }
-    } catch (err) {
-      this.logger.warn(`Social Insurance URL lookup failed: ${err.message}`);
-    }
-
-    return this.SOURCES.SOCIAL_DEBTORS_ZIP_FALLBACK;
   }
 
   // ──────────────────────────────────────────────────────────

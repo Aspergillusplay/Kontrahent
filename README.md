@@ -76,8 +76,8 @@ A full breakdown is available in `DATA_SOURCES.md`.
 
 Current source logic includes:
 
-- Ekosystem Datahub for company search and detail enrichment
-- FinStat public pages for browse, company detail scraping, and fallback discovery
+- RPO API (Statistical Office) for legal-entity search and identity/status enrichment
+- RUZ API (Register of financial statements) for company profile and financial statements
 - Financial Administration debtor exports for tax-debt synchronization
 - Social Insurance debtor exports for social-debt synchronization
 
@@ -129,7 +129,8 @@ Required for normal operation:
 Important optional variables:
 
 - `PORT` (default `3001`)
-- `EKOSYSTEM_API_BASE`, `EKOSYSTEM_API_KEY`
+- `RPO_API_BASE`
+- `RUZ_API_BASE`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_POLLING_ENABLED`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`

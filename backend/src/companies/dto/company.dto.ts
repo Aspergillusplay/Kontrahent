@@ -9,7 +9,7 @@ export class CheckCompanyDto {
   ico: string;
 }
 
-export interface EkosystemCompany {
+export interface RegistryCompany {
   ico: string;
   name: string;
   legal_form?: string;
@@ -36,7 +36,7 @@ export interface CompanyRiskData {
   risk_score_numeric: number;
   risk_reasons: string[];
   last_checked_at: string;
-  // Financial data from FinStat
+  // Financial data from official accounting statements (RUZ)
   revenue?: number;
   profit?: number;
   is_loss?: boolean;
@@ -46,7 +46,7 @@ export interface CompanyRiskData {
   assets?: number;
   financial_year?: string;
   gross_margin?: number;
-  // FinStat indicators (YES/NO)
+  // Debt/risk indicators
   dlhy_nedoplatky?: boolean;
   pohladavky_statu?: boolean;
   has_docasna_ochrana?: boolean;
