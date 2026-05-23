@@ -47,7 +47,7 @@ export type CompanySearchResult = {
   name: string;
   address?: string;
   city?: string;
-  source: 'direct' | 'register' | 'local' | 'finstat';
+  source: 'direct' | 'register' | 'local' | 'rpo' | 'ruz';
   risk_score?: RiskScore;
 };
 

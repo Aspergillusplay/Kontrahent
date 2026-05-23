@@ -33,11 +33,11 @@ export class CompaniesController {
 
   /**
    * GET /companies/browse
-   * Browsing all companies from FinStat database with filters/sorting
+   * Browsing companies from official registries with filters/sorting
    */
   @Get('browse')
   @Public()
-  @ApiOperation({ summary: 'Browse company database with filters and sorting' })
+  @ApiOperation({ summary: 'Browse company registry with filters and sorting' })
   async browse(
     @Query('page') page?: string,
     @Query('sort') sort?: string,
@@ -49,7 +49,7 @@ export class CompaniesController {
     @Query('q') q?: string,
   ) {
     const pageNumber = page ? parseInt(page, 10) : 1;
-    return this.companiesService.browseFinStatDatabase({
+    return this.companiesService.browseRegistryDatabase({
       page: isNaN(pageNumber) ? 1 : pageNumber,
       sort: sort || 'sales-desc',
       activity: activity || '',
