@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { TrendingUp } from 'lucide-react';
 import { CompanyHistoryItem } from '../../lib/company-types';
 import { useI18n } from '../../lib/i18n/provider';
-import { toDateFnsLocale } from '../../lib/i18n/formatters';
+import { toDateFnsLocale, formatCurrencyValue } from '../../lib/i18n/formatters';
 
 type CompanyHistoryTimelineProps = {
   history: CompanyHistoryItem[];
@@ -12,6 +12,15 @@ type CompanyHistoryTimelineProps = {
 
 export default function CompanyHistoryTimeline({ history }: CompanyHistoryTimelineProps) {
   const { t, locale } = useI18n();
+  const fields: Record<string, string> = { tax_debt: 'company.source.tax', social_debt: 'company.source.social', health_debt: 'company.source.health',
+    risk_score: 'history.risk', status: 'history.status', is_bankrupt: 'history.bankruptcy', is_in_liquidation: 'history.liquidation' };
+  const value = (entry: CompanyHistoryItem, raw: string) => {
+    if (raw == null || raw === '') return '—';
+    if (entry.field_name.endsWith('_debt') && Number.isFinite(Number(raw))) return formatCurrencyValue(Number(raw), locale);
+    if (raw === 'true' || raw === 'false') return t(raw === 'true' ? 'common.yes' : 'common.no');
+    if (entry.field_name === 'risk_score') return t(({green:'risk.safe',yellow:'risk.warning',red:'risk.critical',unknown:'risk.unknown'} as Record<string,string>)[raw] || 'risk.unknown');
+    return raw;
+  };
 
   if (!history.length) {
     return null;
@@ -43,13 +52,13 @@ export default function CompanyHistoryTimeline({ history }: CompanyHistoryTimeli
             />
             <div className="flex-1">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-1">
-                <span className="text-sm font-bold text-slate-200">{entry.field_name}</span>
+                <span className="text-sm font-bold text-slate-200">{fields[entry.field_name] ? t(fields[entry.field_name]) : entry.field_name}</span>
                 <span className="text-[10px] font-mono text-slate-500 bg-slate-950 px-2 py-0.5 rounded uppercase">
                   {format(new Date(entry.changed_at), 'd.M.yy HH:mm', { locale: toDateFnsLocale(locale) })}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-slate-400 line-through opacity-50">{entry.old_value || '—'}</span>
+                <span className="text-slate-400 line-through opacity-50">{value(entry, entry.old_value)}</span>
                 <TrendingUp className="w-3 h-3 text-slate-600 rotate-90" />
                 <span
                   className={`font-medium ${
@@ -60,7 +69,7 @@ export default function CompanyHistoryTimeline({ history }: CompanyHistoryTimeli
                         : 'text-slate-200'
                   }`}
                 >
-                  {entry.new_value}
+                  {value(entry, entry.new_value)}
                 </span>
               </div>
             </div>

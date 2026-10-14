@@ -44,13 +44,14 @@ export function SearchHeaderBar({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
+              aria-label={t('search.placeholder')}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder={t('search.placeholder')}
               className="input pl-9 py-2 text-sm"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary py-2 px-3 sm:px-4 shrink-0 inline-flex items-center justify-center">
+          <button type="submit" aria-label={t('common.search')} className="btn-primary py-2 px-3 sm:px-4 shrink-0 inline-flex items-center justify-center">
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
@@ -142,16 +143,17 @@ export function SearchMainContent({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-100 mb-1">{t('search.title')}</h1>
         <p className="text-sm text-slate-500">
-          {total > 0 ? t('search.total', { count: formatNumber(total) }) : t('search.loadingDatabase')}
+          {loading ? t('search.loadingDatabase') : t('search.total', { count: formatNumber(total) })}
           {hasActiveFilters && t('search.filtered')}
         </p>
       </div>
 
+      <p className="text-sm text-slate-400 mb-5 leading-relaxed max-w-3xl">{t('search.coverage')}</p>
       <div className="mb-6 space-y-3">
         <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
           <div className="relative w-full sm:w-auto">
             <select
-              value={sort}
+              aria-label={t('search.filter.sort')} value={sort}
               onChange={(e) => applyFilters({ sort: e.target.value, page: 1 })}
               className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors"
             >
@@ -165,7 +167,7 @@ export function SearchMainContent({
           </div>
 
           <select
-            value={region}
+            aria-label={t('search.filter.region')} value={region}
             onChange={(e) => applyFilters({ region: e.target.value, page: 1 })}
             className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
           >
@@ -177,7 +179,7 @@ export function SearchMainContent({
           </select>
 
           <select
-            value={legalForm}
+            aria-label={t('search.filter.legalForm')} value={legalForm}
             onChange={(e) => applyFilters({ legalForm: e.target.value, page: 1 })}
             className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
           >
@@ -189,7 +191,7 @@ export function SearchMainContent({
           </select>
 
           <select
-            value={employees}
+            aria-label={t('search.filter.employees')} value={employees}
             onChange={(e) => applyFilters({ employees: e.target.value, page: 1 })}
             className="w-full sm:w-auto appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-4 py-2.5 pr-8 text-sm text-slate-200 cursor-pointer hover:border-slate-600 focus:border-brand-500 transition-colors"
           >
@@ -247,8 +249,8 @@ export function SearchMainContent({
                     <td className="px-4 py-3 text-right text-slate-300 font-medium whitespace-nowrap">{c.sales || '—'}</td>
                     <td className="px-4 py-3 text-slate-500 text-xs">{c.creation_date || '—'}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href={`/company/${c.ico}`} className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-brand-400 transition-colors">
+                      <div className="flex items-center gap-1.5 opacity-70 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                        <Link href={`/company/${c.ico}`} aria-label={c.name} className="p-1.5 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-brand-400 transition-colors">
                           <ExternalLink className="w-3.5 h-3.5" />
                         </Link>
                         {watchlist.includes(c.ico) ? (
@@ -257,8 +259,9 @@ export function SearchMainContent({
                           </span>
                         ) : (
                           <button
+                            aria-label={t('search.addToWatchlist') + ": " + c.name}
                             onClick={() => addToWatchlist(c.ico)}
-                            disabled={addingIco === c.ico}
+                            disabled={!!addingIco}
                             className="p-1.5 rounded-md hover:bg-brand-500/20 text-slate-400 hover:text-brand-400 transition-colors"
                           >
                             {addingIco === c.ico ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
@@ -285,7 +288,9 @@ export function SearchMainContent({
                         <Check className="w-3 h-3" />
                       </span>
                     ) : (
-                      <button onClick={() => addToWatchlist(c.ico)} className="btn-primary py-1 px-2 text-xs flex items-center gap-1">
+                      <button aria-label={t('search.addToWatchlist') + ": " + c.name}
+                      disabled={!!addingIco}
+                      onClick={() => addToWatchlist(c.ico)} className="btn-primary py-1 px-2 text-xs flex items-center gap-1">
                         <Plus className="w-3 h-3" /> {t('search.watch')}
                       </button>
                     )}

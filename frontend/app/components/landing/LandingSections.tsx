@@ -42,7 +42,7 @@ export function LandingHeroSection({ t, user }: LandingHeroSectionProps) {
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 sm:pb-16 text-center">
       <div className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 rounded-full px-4 py-1.5 text-brand-400 text-sm mb-8">
         <Zap className="w-3.5 h-3.5" />
-        {t('landing.banner')}
+        {t('landing.badge')}
       </div>
 
       <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
@@ -51,7 +51,7 @@ export function LandingHeroSection({ t, user }: LandingHeroSectionProps) {
         <span className="text-brand-500">{t('landing.heroTrust')}</span>
       </h1>
 
-      <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-8 sm:mb-10">{t('landing.heroDescription')}</p>
+      <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-8 sm:mb-10">{t('landing.subtitle')}</p>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         {user ? (
@@ -160,13 +160,13 @@ export function LandingFooterSection({ t }: LandingFooterSectionProps) {
     <footer className="border-t border-slate-800 px-4 sm:px-6 py-8">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-slate-500 text-sm">
-          <Shield className="w-4 h-4" />© 2025 Kontrahent.sk - {t('landing.footer')}
+          <Shield className="w-4 h-4" />© {new Date().getFullYear()} Kontrahent.sk - {t('landing.footer')}
         </div>
         <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm text-slate-500">
-          <Link href="/privacy" className="hover:text-slate-300">
+          <Link href="/about-data#account" className="hover:text-slate-300">
             {t('landing.privacy')}
           </Link>
-          <Link href="/terms" className="hover:text-slate-300">
+          <Link href="/about-data#coverage" className="hover:text-slate-300">
             {t('landing.terms')}
           </Link>
         </div>

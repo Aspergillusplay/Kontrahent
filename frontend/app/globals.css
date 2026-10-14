@@ -49,8 +49,10 @@
     color: rgb(var(--slate-100));
   }
 
-  html.theme-pending body {
-    visibility: hidden;
+  :focus-visible { outline: 2px solid #6366f1; outline-offset: 3px; }
+  button:disabled { cursor: not-allowed; opacity: .55; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
   
   ::-webkit-scrollbar { width: 6px; }
@@ -84,3 +86,7 @@
            focus:ring-1 focus:ring-brand-500 transition-colors;
   }
 }
+
+:root[data-theme='light'] .text-emerald-400, :root[data-theme='light'] .text-green-400 { color: #15803d; }
+:root[data-theme='light'] .text-red-400 { color: #b91c1c; }
+:root[data-theme='light'] .text-yellow-400, :root[data-theme='light'] .text-orange-300, :root[data-theme='light'] .text-yellow-300 { color: #92400e; }

@@ -117,8 +117,8 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
       color: company.debt_ratio !== undefined && company.debt_ratio > 100 ? 'text-yellow-400' : undefined,
     },
     {
-      label: t('company.metric.grossMargin'),
-      value: company.gross_margin !== undefined ? `${company.gross_margin.toFixed(2)} %` : '—',
+      label: t('company.metric.netMargin'),
+      value: company.net_margin !== undefined ? `${company.net_margin.toFixed(2)} %` : '—',
     },
   ];
 
@@ -150,10 +150,10 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
             <Briefcase className="w-3.5 h-3.5 text-brand-500" /> {t('company.businessActivity')}
           </h3>
           <div className="space-y-4">
-            <div className="flex flex-col gap-1.5 border-b border-slate-800/50 pb-3">
+            {company.industry && company.industry !== company.sk_nace && <div className="flex flex-col gap-1.5 border-b border-slate-800/50 pb-3">
               <span className="text-sm text-slate-400">{t('company.industry')}</span>
               <span className="text-sm font-medium text-slate-200">{company.industry || '—'}</span>
-            </div>
+            </div>}
             <div className="flex flex-col gap-1.5 border-b border-slate-800/50 pb-3">
               <span className="text-sm text-slate-400">{t('company.skNace')}</span>
               <span className="text-sm leading-snug text-slate-300">{company.sk_nace || '—'}</span>

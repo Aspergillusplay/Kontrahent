@@ -12,6 +12,9 @@ export class SupabaseService {
       this.config.getOrThrow('SUPABASE_SERVICE_ROLE_KEY'),
       {
         auth: { autoRefreshToken: false, persistSession: false },
+        global: { fetch: (input, init) => fetch(input, { ...init,
+          signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
+        }) },
       },
     );
   }

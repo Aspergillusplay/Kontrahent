@@ -1,252 +1,59 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CompaniesService } from '../companies/companies.service';
-import { WatchlistService } from '../watchlist/watchlist.service';
 import { NotificationsService } from '../notifications/notifications.service';
-
-interface ChangeEvent {
-  field: string;
-  oldValue: any;
-  newValue: any;
-  severity: 'info' | 'warning' | 'critical';
-  message: string;
-}
 
 @Injectable()
 export class MonitoringService {
   private readonly logger = new Logger(MonitoringService.name);
-
-  constructor(
-    private supabase: SupabaseService,
-    private companies: CompaniesService,
-    private watchlist: WatchlistService,
-    private notifications: NotificationsService,
-  ) {}
-
-  /**
-   * Main monitoring cron. Runs every night at 03:00.
-   * Iterates over all watched companies and compares current data.
-   */
-  @Cron('0 3 * * *', { name: 'nightly-monitoring', timeZone: 'Europe/Bratislava' })
-  async runNightlyMonitoring() {
-    this.logger.log('🔍 Starting nightly monitoring...');
-
-    const watchedItems = await this.watchlist.getAllWatchedIcos();
-    const uniqueIcos = [...new Set(watchedItems.map((w) => w.ico))];
-
-    this.logger.log(`📊 Checking ${uniqueIcos.length} companies...`);
-    let alertsSent = 0;
-
-    for (const ico of uniqueIcos) {
-      try {
-        const changes = await this.checkCompanyForChanges(ico);
-        if (changes.length > 0) {
-          // Find all users watching this company
-          const watchers = watchedItems.filter((w) => w.ico === ico);
-          for (const watcher of watchers) {
-            await this.dispatchAlerts(watcher.user_id, ico, changes, {
-              telegram: watcher.notify_telegram,
-              push: watcher.notify_push,
-            });
-            alertsSent++;
-          }
-        }
-      } catch (err) {
-        this.logger.error(`Error while checking ICO ${ico}: ${err.message}`);
+  constructor(private supabase: SupabaseService, private companies: CompaniesService,
+    private notifications: NotificationsService, private config: ConfigService) {}
+  async runNightlyMonitoring(deadline = Date.now()+5*60000) {
+    const {data:state,error:stateError}=await this.supabase.db.from('job_leases').select('cursor').eq('name','daily-maintenance').single();
+    if(stateError) throw new Error('Monitoring checkpoint is unavailable');
+    let cursor = state.cursor || ''; let checked = 0; let failed = 0;
+    while (Date.now()<deadline && checked+failed<20) {
+      const {data,error} = await this.supabase.db.from('watchlists').select('ico').gt('ico',cursor).order('ico').limit(200);
+      if(error) throw new Error('Watchlist monitoring is unavailable');
+      if(!data?.length) { cursor=''; break; }
+      for(const ico of [...new Set(data.map(row=>row.ico))]) {
+        if(Date.now()>=deadline || checked+failed>=20) break;
+        try { await this.companies.getCompany(ico); checked++; }
+        catch(error) { failed++; this.logger.warn('Company refresh failed: ' + ico); }
+        cursor=ico;
+        const {error:checkpointError}=await this.supabase.db.from('job_leases').update({cursor}).eq('name','daily-maintenance');
+        if(checkpointError) throw new Error('Monitoring checkpoint could not be saved');
       }
-
-      // Small delay to respect API rate limits
-      await this.sleep(500);
+      if(data.length<200 && cursor===data[data.length-1].ico) { cursor=''; break; }
     }
-
-    this.logger.log(`✅ Monitoring completed. Alerts sent: ${alertsSent}`);
+    const {error}=await this.supabase.db.from('job_leases').update({cursor}).eq('name','daily-maintenance');
+    if(error) throw new Error('Monitoring checkpoint could not be saved');
+    await this.deliverPendingAlerts(deadline+60000);
+    return { checked, failed, remaining: !!cursor };
   }
-
-  /**
-   * Compares current company data with stored values and returns a list of changes.
-   */
-  private async checkCompanyForChanges(ico: string): Promise<ChangeEvent[]> {
-    // Get current state from DB
-    const { data: oldData } = await this.supabase.db
-      .from('companies')
-      .select('*')
-      .eq('ico', ico)
-      .single();
-
-    if (!oldData) return [];
-
-    // Fetch fresh data
-    const newData = await this.companies.fetchAndStore(ico);
-    const changes: ChangeEvent[] = [];
-
-    // ── Diff logic ──────────────────────────────────────────
-    
-    // Tax debt change
-    if (Number(newData.tax_debt) !== Number(oldData.tax_debt)) {
-      const increased = newData.tax_debt > oldData.tax_debt;
-      changes.push({
-        field: 'tax_debt',
-        oldValue: oldData.tax_debt,
-        newValue: newData.tax_debt,
-        severity: newData.tax_debt > 1000 ? 'critical' : 'warning',
-        message: increased
-          ? `💸 New tax debt: ${newData.tax_debt.toFixed(2)} EUR (previously: ${Number(oldData.tax_debt).toFixed(2)} EUR)`
-          : `✅ Tax debt decreased to ${newData.tax_debt.toFixed(2)} EUR`,
-      });
+  async deliverPendingAlerts(deadline = Date.now()+60000) {
+    const {data:alerts,error} = await this.supabase.db.from('alerts').select('*')
+      .not('event_id','is',null).or('telegram_delivered.eq.false,push_delivered.eq.false').order('sent_at').limit(100);
+    if(error) throw new Error('Alert queue is unavailable');
+    for(const alert of alerts || []) {
+      if(Date.now()>=deadline) break;
+      const [{data:profile,error:profileError},{data:watch,error:watchError}] = await Promise.all([
+        this.supabase.db.from('profiles').select('telegram_chat_id,push_subscription').eq('id',alert.user_id).maybeSingle(),
+        this.supabase.db.from('watchlists').select('notify_telegram,notify_push').eq('user_id',alert.user_id).eq('ico',alert.ico).maybeSingle(),
+      ]);
+      if(profileError || watchError) continue;
+      const updates: Record<string,boolean> = {};
+      if(!alert.telegram_delivered) {
+        updates.telegram_delivered=!watch?.notify_telegram || !profile?.telegram_chat_id || await this.notifications.sendTelegram(profile.telegram_chat_id,
+          alert.company_name+' (ICO '+alert.ico+')\n'+alert.message+'\n'+(this.config.get('FRONTEND_URL') || '').split(',')[0]+'/company/'+alert.ico);
+      }
+      if(!alert.push_delivered) {
+        updates.push_delivered=!watch?.notify_push || !profile?.push_subscription || await this.notifications.sendPushNotification(profile.push_subscription,
+          {title:alert.company_name,body:alert.message,url:'/company/'+alert.ico});
+      }
+      const {error:saveError}=await this.supabase.db.from('alerts').update(updates).eq('id',alert.id);
+      if(saveError) throw new Error('Notification delivery state could not be saved');
     }
-
-    // Social debt change
-    if (Number(newData.social_debt) !== Number(oldData.social_debt)) {
-      const increased = newData.social_debt > oldData.social_debt;
-      changes.push({
-        field: 'social_debt',
-        oldValue: oldData.social_debt,
-        newValue: newData.social_debt,
-        severity: 'warning',
-        message: increased
-          ? `💸 New social debt: ${newData.social_debt.toFixed(2)} EUR`
-          : `✅ Social debt decreased to ${newData.social_debt.toFixed(2)} EUR`,
-      });
-    }
-
-    // Bankruptcy
-    if (!oldData.is_bankrupt && newData.is_bankrupt) {
-      changes.push({
-        field: 'is_bankrupt',
-        oldValue: false,
-        newValue: true,
-        severity: 'critical',
-        message: '🚨 COMPANY ENTERED BANKRUPTCY!',
-      });
-    }
-
-    // Liquidation
-    if (!oldData.is_in_liquidation && newData.is_in_liquidation) {
-      changes.push({
-        field: 'is_in_liquidation',
-        oldValue: false,
-        newValue: true,
-        severity: 'critical',
-        message: '🚨 COMPANY ENTERED LIQUIDATION!',
-      });
-    }
-
-    // New court cases
-    if (newData.court_cases > oldData.court_cases) {
-      changes.push({
-        field: 'court_cases',
-        oldValue: oldData.court_cases,
-        newValue: newData.court_cases,
-        severity: 'warning',
-        message: `⚖️ New court case detected (total: ${newData.court_cases})`,
-      });
-    }
-
-    // Risk score upgrade
-    if (oldData.risk_score !== newData.risk_score) {
-      const worsened =
-        (oldData.risk_score === 'green' && newData.risk_score !== 'green') ||
-        (oldData.risk_score === 'yellow' && newData.risk_score === 'red');
-
-      changes.push({
-        field: 'risk_score',
-        oldValue: oldData.risk_score,
-        newValue: newData.risk_score,
-        severity: newData.risk_score === 'red' ? 'critical' : 'info',
-        message: worsened
-          ? `🔴 Risk score worsened: ${oldData.risk_score} -> ${newData.risk_score}`
-          : `🟢 Risk score improved: ${oldData.risk_score} -> ${newData.risk_score}`,
-      });
-    }
-
-    // Save changes to history table
-    if (changes.length > 0) {
-      await this.supabase.db.from('company_history').insert(
-        changes.map((c) => ({
-          ico,
-          field_name: c.field,
-          old_value: String(c.oldValue),
-          new_value: String(c.newValue),
-          change_type:
-            c.severity === 'critical' || (c.field !== 'risk_score' && c.newValue > c.oldValue)
-              ? 'worsened'
-              : c.newValue < c.oldValue
-              ? 'improved'
-              : 'neutral',
-        })),
-      );
-    }
-
-    return changes;
-  }
-
-  /**
-   * Sends alerts for one specific user.
-   */
-  private async dispatchAlerts(
-    userId: string,
-    ico: string,
-    changes: ChangeEvent[],
-    channels: { telegram: boolean; push: boolean },
-  ) {
-    const { data: profile } = await this.supabase.db
-      .from('profiles')
-      .select('telegram_chat_id, push_subscription, email')
-      .eq('id', userId)
-      .single();
-
-    const { data: company } = await this.supabase.db
-      .from('companies')
-      .select('name')
-      .eq('ico', ico)
-      .single();
-
-    const companyName = company?.name || ico;
-    const criticalChanges = changes.filter((c) => c.severity === 'critical');
-    const severity = criticalChanges.length > 0 ? 'critical' : 'warning';
-
-    const messageLines = [
-      `📋 *${companyName}* (ICO: ${ico})`,
-      '',
-      ...changes.map((c) => c.message),
-      '',
-      `🔗 https://kontrahent.sk/company/${ico}`,
-    ];
-    const message = messageLines.join('\n');
-
-    // Save alert to DB
-    await this.supabase.db.from('alerts').insert({
-      user_id: userId,
-      ico,
-      company_name: companyName,
-      message,
-      severity,
-    });
-
-    // Send notifications
-    const promises: Promise<any>[] = [];
-
-    if (channels.telegram && profile?.telegram_chat_id) {
-      promises.push(
-        this.notifications.sendTelegram(profile.telegram_chat_id, message),
-      );
-    }
-
-    if (channels.push && profile?.push_subscription) {
-      promises.push(
-        this.notifications.sendPushNotification(profile.push_subscription, {
-          title: `⚠️ ${companyName}`,
-          body: changes[0].message,
-          url: `/company/${ico}`,
-        }),
-      );
-    }
-
-    await Promise.allSettled(promises);
-  }
-
-  private sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

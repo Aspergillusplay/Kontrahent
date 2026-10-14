@@ -1,3 +1,4 @@
+import TelegramBotLink from '../../../components/TelegramBotLink';
 import { AlertTriangle, CheckCircle, Loader2, MessageCircle } from 'lucide-react';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -43,6 +44,7 @@ export default function ProfileTelegramSection({
         </ol>
       </div>
 
+      <TelegramBotLink />
       <form onSubmit={onConnectTelegram} className="flex gap-3">
         <input
           type="text"

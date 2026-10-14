@@ -13,16 +13,17 @@ interface Props {
     companies: {
       name: string;
       city?: string;
-      risk_score: 'green' | 'yellow' | 'red';
+      risk_score: 'green' | 'yellow' | 'red' | 'unknown';
       risk_score_numeric?: number;
       risk_reasons?: string[];
       tax_debt?: number;
       social_debt?: number;
+      health_debt?: number;
       court_cases?: number;
       last_checked_at?: string;
     };
   };
-  onRemove: () => void;
+  onRemove?: () => void;
 }
 
 export default function CompanyRow({ item, onRemove }: Props) {
@@ -30,9 +31,9 @@ export default function CompanyRow({ item, onRemove }: Props) {
   const c = item.companies;
   if (!c) return null;
 
-  const hasDebt = (c.tax_debt || 0) + (c.social_debt || 0) > 0;
-  const totalDebt = (c.tax_debt || 0) + (c.social_debt || 0);
-  const lastChecked = c.last_checked_at
+  const hasDebt = Number(c.tax_debt || 0) + Number(c.social_debt || 0) + Number(c.health_debt || 0) > 0;
+  const totalDebt = Number(c.tax_debt || 0) + Number(c.social_debt || 0) + Number(c.health_debt || 0);
+  const lastChecked = c.last_checked_at && !isNaN(Date.parse(c.last_checked_at))
     ? formatDistanceToNow(new Date(c.last_checked_at), { addSuffix: true, locale: toDateFnsLocale(locale) })
     : null;
 
@@ -47,7 +48,7 @@ export default function CompanyRow({ item, onRemove }: Props) {
       {/* Risk indicator bar */}
       <div className={`w-1 h-10 rounded-full shrink-0 mt-0.5 sm:mt-0 ${
         c.risk_score === 'red' ? 'bg-red-500' :
-        c.risk_score === 'yellow' ? 'bg-yellow-500' : 'bg-green-500'
+        c.risk_score === 'yellow' ? 'bg-yellow-500' : c.risk_score === 'green' ? 'bg-green-500' : 'bg-slate-500'
       }`} />
 
       {/* Main content */}
@@ -55,6 +56,7 @@ export default function CompanyRow({ item, onRemove }: Props) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <Link
+              aria-label={c.name}
               href={`/company/${item.ico}`}
               className="block font-semibold text-slate-100 hover:text-brand-400 transition-colors leading-tight break-words"
             >
@@ -67,6 +69,7 @@ export default function CompanyRow({ item, onRemove }: Props) {
 
           <div className="flex items-center gap-1 shrink-0 sm:hidden">
             <Link
+              aria-label={c.name}
               href={`/company/${item.ico}`}
               className="btn-ghost p-1.5 opacity-100 transition-opacity"
             >
@@ -74,7 +77,8 @@ export default function CompanyRow({ item, onRemove }: Props) {
             </Link>
 
             <button
-              onClick={(e) => { e.stopPropagation(); onRemove(); }}
+              hidden={!onRemove}
+              onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
               className="btn-ghost p-1.5 text-slate-600 hover:text-red-400 opacity-100 transition-all"
               title={t('companyRow.removeFromWatchlist')}
             >
@@ -115,14 +119,16 @@ export default function CompanyRow({ item, onRemove }: Props) {
         <RiskBadge score={c.risk_score} numericScore={c.risk_score_numeric} size="sm" />
 
         <Link
-          href={`/company/${item.ico}`}
+          aria-label={c.name}
+              href={`/company/${item.ico}`}
           className="btn-ghost p-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
         >
           <ChevronRight className="w-4 h-4" />
         </Link>
 
         <button
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          hidden={!onRemove}
+              onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
           className="btn-ghost p-1.5 text-slate-600 hover:text-red-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
           title={t('companyRow.removeFromWatchlist')}
         >

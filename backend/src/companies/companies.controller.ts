@@ -5,6 +5,7 @@ import {
   ParseIntPipe,
   Query,
   HttpCode,
+  Post,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
@@ -87,7 +88,7 @@ export class CompaniesController {
    * GET /companies/:ico/refresh
    * Forces a data refresh (bypasses cache).
    */
-  @Get(':ico/refresh')
+  @Post(':ico/refresh')
   @ApiOperation({ summary: 'Force data refresh from source APIs' })
   async refreshCompany(@Param('ico') ico: string) {
     return this.companiesService.fetchAndStore(ico.padStart(8, '0'));

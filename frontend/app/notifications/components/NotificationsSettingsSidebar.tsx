@@ -1,3 +1,4 @@
+import TelegramBotLink from '../../../components/TelegramBotLink';
 import { Bell, CheckCircle2, Loader2, Send, Smartphone } from 'lucide-react';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -34,7 +35,8 @@ export default function NotificationsSettingsSidebar({
           <Send className="w-4 h-4" /> {t('notifications.telegramTitle')}
         </h3>
         <p className="text-xs text-slate-500 mb-4">{t('notifications.telegramDescription')}</p>
-        <form onSubmit={onConnectTelegram} className="space-y-3">
+        <TelegramBotLink />
+      <form onSubmit={onConnectTelegram} className="space-y-3">
           <div>
             <label className="text-[10px] text-slate-500 ml-1 mb-1 block">{t('notifications.chatId')}</label>
             <input

@@ -40,6 +40,7 @@ export default function AuthFormCard({
 
       <button
         onClick={onGoogleSignIn}
+        disabled={loading}
         className="w-full flex items-center justify-center gap-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors mb-4"
       >
         <svg viewBox="0 0 24 24" className="w-5 h-5">
@@ -64,6 +65,7 @@ export default function AuthFormCard({
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
+                aria-label={t('auth.fullName')} autoComplete="name"
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -80,6 +82,7 @@ export default function AuthFormCard({
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
+              aria-label={t('auth.email')} autoComplete="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -95,6 +98,7 @@ export default function AuthFormCard({
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
+              aria-label={t('auth.password')} autoComplete={isLogin ? "current-password" : "new-password"}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -106,7 +110,7 @@ export default function AuthFormCard({
           </div>
         </div>
 
-        {error && <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-400 text-sm">{error}</div>}
+        {error && <div role="alert" className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-400 text-sm">{error}</div>}
         {success && <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-green-400 text-sm">{success}</div>}
 
         <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2 py-3">

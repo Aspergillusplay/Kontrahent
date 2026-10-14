@@ -37,27 +37,40 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   };
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status = 0) { super(message); }
+}
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { ...headers, ...options?.headers },
-  });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: 'Server error' }));
-    throw new Error(error.message || `HTTP ${res.status}`);
+  const method = options?.method || 'GET';
+  const isPublic = path.startsWith('/companies/') && method === 'GET';
+  const headers = isPublic ? {} : await getAuthHeaders();
+  // Render Free may take about a minute to wake. Only reads are safe to retry.
+  for(let attempt=0; attempt<(method === 'GET' ? 2 : 1); attempt++) {
+    const controller=new AbortController();
+    const abort=()=>controller.abort();
+    if(options?.signal?.aborted) throw new DOMException('Aborted','AbortError');
+    options?.signal?.addEventListener('abort',abort,{once:true});
+    const timer=setTimeout(abort, attempt === 0 ? 75000 : 20000);
+    try {
+      const res=await fetch(API_URL.replace(/\/$/,'')+path, {...options,signal:controller.signal,cache:'no-store',headers:{...headers,...options?.headers}});
+      if(!res.ok) {
+        if(method==='GET' && attempt===0 && [502,503,504].includes(res.status)) continue;
+        const body=await res.json().catch(()=>({}));
+        throw new ApiError(Array.isArray(body.message)?body.message.join('; '):body.message || 'Request failed',res.status);
+      }
+      if(res.status===204) return {} as T;
+      const text=await res.text();
+      return text ? JSON.parse(text) : {} as T;
+    } catch(error) {
+      if(options?.signal?.aborted) throw new DOMException('Aborted','AbortError');
+      if(method==='GET' && attempt===0 && !(error instanceof ApiError)) continue;
+      throw error instanceof ApiError ? error : new ApiError('The server is temporarily unavailable. Please retry.');
+    } finally {
+      clearTimeout(timer);
+      options?.signal?.removeEventListener('abort',abort);
+    }
   }
-
-  // Handle empty responses (like 204 No Content for DELETE)
-  if (res.status === 204 || res.headers.get('content-length') === '0') {
-    return {} as T;
-  }
-
-  const text = await res.text();
-  if (!text) return {} as T;
-
-  return JSON.parse(text);
+  throw new ApiError('The server is temporarily unavailable.');
 }
 
 // ── Companies ────────────────────────────────────────────────
@@ -74,7 +87,7 @@ export const api = {
       employees?: string;
       salesFrom?: string;
       q?: string;
-    }) => {
+    }, signal?: AbortSignal) => {
       const searchParams = new URLSearchParams();
       if (params.page && params.page > 1) searchParams.set('page', String(params.page));
       if (params.sort) searchParams.set('sort', params.sort);
@@ -84,11 +97,11 @@ export const api = {
       if (params.employees) searchParams.set('employees', params.employees);
       if (params.salesFrom) searchParams.set('salesFrom', params.salesFrom);
       if (params.q) searchParams.set('q', params.q);
-      return apiFetch<any>(`/companies/browse?${searchParams.toString()}`);
+      return apiFetch<any>(`/companies/browse?${searchParams.toString()}`, { signal });
     },
-    get: (ico: string) => apiFetch<CompanyDetails>(`/companies/${ico}`),
-    history: (ico: string) => apiFetch<CompanyHistoryItem[]>(`/companies/${ico}/history`),
-    refresh: (ico: string) => apiFetch<CompanyDetails>(`/companies/${ico}/refresh`),
+    get: (ico: string, signal?: AbortSignal) => apiFetch<CompanyDetails>(`/companies/${ico}`, { signal }),
+    history: (ico: string, signal?: AbortSignal) => apiFetch<CompanyHistoryItem[]>(`/companies/${ico}/history`, { signal }),
+    refresh: (ico: string) => apiFetch<CompanyDetails>(`/companies/${ico}/refresh`, { method: 'POST' }),
   },
 
   watchlist: {
@@ -108,6 +121,7 @@ export const api = {
   },
 
   notifications: {
+    telegramBot: () => apiFetch<{username: string | null}>('/notifications/telegram/bot'),
     alerts: () => apiFetch<AlertItem[]>('/notifications/alerts'),
     markAllRead: () =>
       apiFetch<BasicApiResult>('/notifications/alerts/read-all', { method: 'POST' }),
@@ -147,7 +161,7 @@ export async function registerPushNotifications(): Promise<boolean> {
       ]) as ServiceWorkerRegistration;
     } catch (err) {
       console.warn('SW ready timed out, attempting manual registration...');
-      registration = await navigator.serviceWorker.register('/sw.js');
+      registration = await navigator.serviceWorker.register('/service-worker.js');
       // Wait a bit for it to install
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -156,7 +170,8 @@ export async function registerPushNotifications(): Promise<boolean> {
 
     const { key } = await api.notifications.getVapidKey();
 
-    const subscription = await registration.pushManager.subscribe({
+    if (!key) return false;
+    const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(key),
     });

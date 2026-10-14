@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: '%s | Kontrahent.sk',
   },
   description:
-    'Track business partner reliability in real time. Instant alerts for tax debt, enforcement actions, and bankruptcy.',
+    'Search Slovak companies, inspect available financial statements and monitor changes in saved records.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -82,12 +82,12 @@ const themeInitScript = `
 })();
 `;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookieTheme = cookieStore.get(THEME_STORAGE_KEY)?.value;
   const initialTheme: AppTheme =
     cookieTheme === 'dark' || cookieTheme === 'light' ? cookieTheme : DEFAULT_THEME;

@@ -1,7 +1,7 @@
 import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import { useI18n } from '../lib/i18n/provider';
 
-type RiskScore = 'green' | 'yellow' | 'red';
+type RiskScore = 'green' | 'yellow' | 'red' | 'unknown';
 
 interface Props {
   score: RiskScore;
@@ -11,6 +11,7 @@ interface Props {
 }
 
 const config = {
+  unknown: { labelKey: 'risk.unknown', icon: ShieldAlert, classes: 'text-slate-300 bg-slate-500/10 border-slate-500/30', dot: 'bg-slate-500', scoreColor: 'text-slate-300' },
   green: {
     labelKey: 'risk.safe',
     icon: ShieldCheck,
@@ -36,7 +37,7 @@ const config = {
 
 export default function RiskBadge({ score, numericScore, size = 'md', showLabel = true }: Props) {
   const { t } = useI18n();
-  const c = config[score] || config.green;
+  const c = config[score] || config.unknown;
   const Icon = c.icon;
 
   const sizeClasses = {
@@ -50,7 +51,7 @@ export default function RiskBadge({ score, numericScore, size = 'md', showLabel 
   return (
     <span className={`inline-flex items-center border rounded-full font-medium ${c.classes} ${sizeClasses}`}>
       <Icon size={iconSize} />
-      {numericScore !== undefined && (
+      {score !== 'unknown' && Number.isFinite(numericScore) && (
         <span className={`font-bold ${c.scoreColor}`}>{numericScore}/100</span>
       )}
       {showLabel && t(c.labelKey)}

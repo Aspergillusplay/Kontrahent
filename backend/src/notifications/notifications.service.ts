@@ -2,11 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as webpush from 'web-push';
+import { validatePushSubscription } from './push-subscription';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly telegramBaseUrl: string;
+  private botInfo: { username: string } | null = null;
 
   constructor(private config: ConfigService) {
     const token = this.config.get('TELEGRAM_BOT_TOKEN');
@@ -23,25 +25,37 @@ export class NotificationsService {
     }
   }
 
+  async getTelegramBot() {
+    if (this.botInfo) return this.botInfo;
+    if (!this.telegramBaseUrl) return { username: null };
+    try {
+      const { data } = await axios.get(this.telegramBaseUrl+'/getMe', { timeout: 10000 });
+      const username=data?.result?.username;
+      if (data?.ok && /^[A-Za-z0-9_]+$/.test(username)) return this.botInfo={username};
+    } catch { this.logger.warn('Telegram bot information is unavailable'); }
+    return { username: null };
+  }
+
   /**
    * Sends a message via Telegram Bot API.
    */
-  async sendTelegram(chatId: string, message: string): Promise<void> {
+  async sendTelegram(chatId: string, message: string): Promise<boolean> {
     if (!this.telegramBaseUrl) {
       this.logger.warn('Telegram bot token is not configured');
-      return;
+      return false;
     }
 
     try {
       await axios.post(`${this.telegramBaseUrl}/sendMessage`, {
         chat_id: chatId,
         text: message,
-        parse_mode: 'Markdown',
         disable_web_page_preview: false,
-      });
+      }, { timeout: 10000 });
       this.logger.log(`✉️ Telegram message sent to ${chatId}`);
+      return true;
     } catch (err) {
       this.logger.error(`Telegram error: ${err.message}`);
+      return false;
     }
   }
 
@@ -51,13 +65,14 @@ export class NotificationsService {
   async sendPushNotification(
     subscription: any,
     payload: { title: string; body: string; url?: string },
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (!subscription) {
       this.logger.warn('Attempted to send push without a subscription');
-      return;
+      return false;
     }
 
     try {
+      subscription = validatePushSubscription(subscription);
       this.logger.log(`📱 Sending push to endpoint: ${subscription.endpoint?.substring(0, 30)}...`);
       await webpush.sendNotification(
         subscription,
@@ -70,13 +85,16 @@ export class NotificationsService {
             { action: 'dismiss', title: 'Dismiss' },
           ],
         }),
+        { timeout: 10000 },
       );
       this.logger.log(`✅ Push notification sent successfully`);
+      return true;
     } catch (err) {
       this.logger.error(`❌ Web Push error: ${err.message}`);
       if (err.statusCode === 410 || err.statusCode === 404) {
         this.logger.warn('Push subscription is expired or invalid');
       }
+      return false;
     }
   }
 
@@ -85,11 +103,11 @@ export class NotificationsService {
    */
   async testTelegram(chatId: string): Promise<{ success: boolean; message: string }> {
     try {
-      await this.sendTelegram(
+      const success = await this.sendTelegram(
         chatId,
         '✅ *Kontrahent.sk*\n\nYour Telegram account is connected successfully.\n\nYou will now receive alerts for changes in your watched companies.',
       );
-      return { success: true, message: 'Test message sent' };
+      return { success, message: success ? 'Test message sent' : 'Telegram delivery failed' };
     } catch {
       return { success: false, message: 'Failed to send message' };
     }

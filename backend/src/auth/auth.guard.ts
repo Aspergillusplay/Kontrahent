@@ -35,7 +35,6 @@ export class AuthGuard implements CanActivate {
     }
 
     const token = authHeader.split(' ')[1];
-    console.log('[AuthGuard] Received token:', token.substring(0, 15) + '...');
 
     // Verify token with Supabase
     const supabase = createClient(
