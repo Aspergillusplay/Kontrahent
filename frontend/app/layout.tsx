@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import '@fontsource-variable/inter';
+import '@fontsource-variable/jetbrains-mono';
 import { cookies } from 'next/headers';
 import Script from 'next/script';
 import './globals.css';
@@ -8,18 +9,6 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import PWARegistration from '../components/PWARegistration';
 import { ThemeProvider } from '../lib/theme/provider';
 import { AppTheme, DEFAULT_THEME, THEME_STORAGE_KEY } from '../lib/theme/config';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -95,7 +84,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} theme-pending`}
+      className="theme-pending"
       data-theme={initialTheme}
       suppressHydrationWarning
     >

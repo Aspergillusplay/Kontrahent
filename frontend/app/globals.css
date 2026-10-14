@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  --font-inter: 'Inter Variable';
+  --font-mono: 'JetBrains Mono Variable';
   --risk-green: #22c55e;
   --risk-yellow: #eab308;
   --risk-red: #ef4444;
