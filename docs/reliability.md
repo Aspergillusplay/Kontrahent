@@ -33,7 +33,7 @@ The October 12 social-insurance export was imported October 13: 134,413 publishe
 
 ## Verification
 
-- Seventeen backend regression tests passed: repayment to zero, missing values, identifier validation, financial columns/components, chart reconciliation, malformed/duplicate feed rows, concurrency, stale fallback, report selection and push endpoint validation.
+- Twenty backend regression tests passed: repayment to zero, missing values, identifier validation, financial columns/components, chart reconciliation, malformed/duplicate feed rows, concurrency, stale fallback, report selection, current company selection over historical branches, complete RPO addresses and push endpoint validation.
 - PostgreSQL rollback tests passed for snapshot/history deduplication, late-result rejection, first-source baseline suppression, atomic source publication, leases and permissions.
 - Disposable-user integration passed for login, profile/watchlist isolation, private/admin denial, duplicate additions, list/update/delete, unsafe push rejection and alerts/read-all. Test users were removed.
 - Backend TypeScript and production frontend builds passed. Production-dependency audits returned zero known vulnerabilities at verification time.
