@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { CompanyRiskData } from '../dto/company.dto';
 
 type DebtSummary = NonNullable<CompanyRiskData['debt_summary']>;
@@ -9,8 +10,27 @@ type TopLevelDebt = {
 };
 
 export function toNumberSafe(value: unknown): number {
-  const parsed = parseFloat(String(value ?? '0'));
+  const parsed = parseNumber(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function parseNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || String(value).trim() === '') return undefined;
+  const normalized = String(value).replace(/[\s\u00a0]/g, '').replace(',', '.');
+  if (!/^-?\d+(?:\.\d+)?$/.test(normalized)) return undefined;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function normalizeIco(value: unknown): string {
+  const text = String(value ?? '').trim();
+  return /^\d{6,8}$/.test(text) ? text.padStart(8, '0') : '';
+}
+
+export function requireIco(value: unknown): string {
+  const ico = normalizeIco(value);
+  if (!ico) throw new BadRequestException('ICO must contain 6 to 8 digits');
+  return ico;
 }
 
 function normalizeText(value: unknown): string {
@@ -18,9 +38,9 @@ function normalizeText(value: unknown): string {
 }
 
 export function buildDebtSummary(rawSummary: Partial<DebtSummary> | undefined, topLevel: TopLevelDebt): DebtSummary {
-  const tax = Math.max(toNumberSafe(rawSummary?.tax), toNumberSafe(topLevel.tax));
-  const social = Math.max(toNumberSafe(rawSummary?.social), toNumberSafe(topLevel.social));
-  const health = Math.max(toNumberSafe(rawSummary?.health), toNumberSafe(topLevel.health));
+  const tax = Math.max(0, toNumberSafe(topLevel.tax ?? rawSummary?.tax));
+  const social = Math.max(0, toNumberSafe(topLevel.social ?? rawSummary?.social));
+  const health = Math.max(0, toNumberSafe(topLevel.health ?? rawSummary?.health));
   const total = tax + social + health;
 
   return {
@@ -52,8 +72,8 @@ export function sanitizeDisplayAddress(rawAddress: unknown, ...nameCandidates: u
 }
 
 export function toRiskNumeric(rawNumeric: unknown, rawRiskScore: unknown): number {
-  const numeric = toNumberSafe(rawNumeric);
-  if (numeric > 0) return numeric;
+  const numeric = parseNumber(rawNumeric);
+  if (numeric !== undefined) return Math.max(0, Math.min(100, numeric));
 
   if (rawRiskScore === 'green') return 100;
   if (rawRiskScore === 'yellow') return 60;

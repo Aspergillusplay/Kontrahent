@@ -1,9 +1,10 @@
 ﻿"use client";
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { api } from '../../lib/api';
+import RequestFeedback from '../../components/RequestFeedback';
+import { api, ApiError } from '../../lib/api';
 import { getSupabase } from '../../lib/supabase';
 import { useI18n } from '../../lib/i18n/provider';
 import { formatNumberValue } from '../../lib/i18n/formatters';
@@ -16,20 +17,19 @@ const SORT_OPTIONS = [
   { value: 'ico', labelKey: 'search.sort.ico' },
   { value: 'city', labelKey: 'search.sort.city' },
   { value: 'region', labelKey: 'search.sort.region' },
-  { value: 'empl-desc', labelKey: 'search.sort.employeesDesc' },
   { value: 'creation-date-desc', labelKey: 'search.sort.creationDateDesc' },
 ];
 
 const REGION_OPTIONS = [
   { value: '', labelKey: 'search.region.all' },
-  { value: 'bratislavský', labelKey: 'search.region.bratislavsky' },
-  { value: 'trnavský', labelKey: 'search.region.trnavsky' },
-  { value: 'trenčiansky', labelKey: 'search.region.trenciansky' },
-  { value: 'nitriansky', labelKey: 'search.region.nitriansky' },
-  { value: 'žilinský', labelKey: 'search.region.zilinsky' },
-  { value: 'banskobystrický', labelKey: 'search.region.banskobystricky' },
-  { value: 'prešovský', labelKey: 'search.region.presovsky' },
-  { value: 'košický', labelKey: 'search.region.kosicky' },
+  { value: 'SK010', labelKey: 'search.region.bratislavsky' },
+  { value: 'SK021', labelKey: 'search.region.trnavsky' },
+  { value: 'SK022', labelKey: 'search.region.trenciansky' },
+  { value: 'SK023', labelKey: 'search.region.nitriansky' },
+  { value: 'SK031', labelKey: 'search.region.zilinsky' },
+  { value: 'SK032', labelKey: 'search.region.banskobystricky' },
+  { value: 'SK041', labelKey: 'search.region.presovsky' },
+  { value: 'SK042', labelKey: 'search.region.kosicky' },
 ];
 
 const LEGAL_FORM_OPTIONS = [
@@ -76,97 +76,60 @@ function SearchContent() {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [addingIco, setAddingIco] = useState<string | null>(null);
 
-  const [page, setPage] = useState(parseInt(searchParams.get('page') || '1', 10));
-  const [sort, setSort] = useState(searchParams.get('sort') || 'sales-desc');
-  const [region, setRegion] = useState(searchParams.get('region') || '');
-  const [legalForm, setLegalForm] = useState(searchParams.get('legalForm') || '');
-  const [employees, setEmployees] = useState(searchParams.get('employees') || '');
-  const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
-
-  const updateUrl = useCallback(
-    (params: Record<string, string | number>) => {
-      const urlP = new URLSearchParams();
-      const all = { page, sort, region, legalForm, employees, q: query, ...params };
-      if (all.sort && all.sort !== 'sales-desc') urlP.set('sort', String(all.sort));
-      if (all.region) urlP.set('region', String(all.region));
-      if (all.legalForm) urlP.set('legalForm', String(all.legalForm));
-      if (all.employees) urlP.set('employees', String(all.employees));
-      if (all.q) urlP.set('q', String(all.q));
-      if (Number(all.page) > 1) urlP.set('page', String(all.page));
-      const qs = urlP.toString();
-      window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
-    },
-    [page, sort, region, legalForm, employees, query]
-  );
-
-  const fetchData = useCallback(async (p: number, s: string, r: string, lf: string, emp: string, q: string) => {
-    setLoading(true);
-    try {
-      const data = await api.companies.browse({ page: p, sort: s, region: r, legalForm: lf, employees: emp, q: q || undefined });
-      setResults(data);
-    } catch (err) {
-      console.error('Browse failed:', err);
-      setResults({ companies: [], total: 0, page: p, perPage: 20, totalPages: 0 });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const supabase = getSupabase();
-    supabase.auth.getUser().then(({ data }) => {
+  const [error,setError]=useState<string|null>(null);
+  const [retry,setRetry]=useState(0);
+  const adding=useRef(false);
+  const page=Math.max(1, Math.min(5000, Number(searchParams.get('page')) || 1));
+  const sort=searchParams.get('sort') || 'name';
+  const region=searchParams.get('region') || '';
+  const legalForm=searchParams.get('legalForm') || '';
+  const employees=searchParams.get('employees') || '';
+  const query=searchParams.get('q') || '';
+  const [searchInput,setSearchInput]=useState(query);
+  useEffect(()=>setSearchInput(query),[query]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    setLoading(true);setError(null);
+    api.companies.browse({page,sort,region,legalForm,employees,q:query},controller.signal)
+      .then(data=>{if(!controller.signal.aborted)setResults(data);})
+      .catch(err=>{if(!controller.signal.aborted)setError(String(err.message));})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[page,sort,region,legalForm,employees,query,retry]);
+  useEffect(()=>{
+    let active=true;
+    getSupabase().auth.getUser().then(async ({data})=>{
+      if(!active)return;
       setUser(data.user);
-      if (data.user) {
-        api.watchlist.list().then((data) => {
-          setWatchlist((data as any[]).map((item) => item.ico));
-        });
-      }
-    });
-    fetchData(page, sort, region, legalForm, employees, query);
-  }, []);
-
-  const applyFilters = (overrides: Record<string, any> = {}) => {
-    const newPage = overrides.page ?? 1;
-    const newSort = overrides.sort ?? sort;
-    const newRegion = overrides.region ?? region;
-    const newLegalForm = overrides.legalForm ?? legalForm;
-    const newEmployees = overrides.employees ?? employees;
-    const newQuery = overrides.q ?? query;
-
-    setPage(newPage);
-    setSort(newSort);
-    setRegion(newRegion);
-    setLegalForm(newLegalForm);
-    setEmployees(newEmployees);
-    setQuery(newQuery);
-    updateUrl({ page: newPage, sort: newSort, region: newRegion, legalForm: newLegalForm, employees: newEmployees, q: newQuery });
-    fetchData(newPage, newSort, newRegion, newLegalForm, newEmployees, newQuery);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      if(data.user){ const items=await api.watchlist.list(); if(active)setWatchlist(items.map(item=>item.ico)); }
+    }).catch(()=>{});
+    return ()=>{active=false;};
+  },[]);
+  const applyFilters=(overrides:Record<string,any>={})=>{
+    const next={sort,region,legalForm,employees,q:query,page:1,...overrides};
+    const params=new URLSearchParams();
+    for(const [key,value] of Object.entries(next))if(value && !(key==='page' && value===1))params.set(key,String(value));
+    router.push('/search?'+params.toString(),{scroll:false});
   };
-
-  const resetFilters = () => {
-    setSearchInput('');
-    applyFilters({ sort: 'sales-desc', region: '', legalForm: '', employees: '', q: '', page: 1 });
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1) return;
-    applyFilters({ page: newPage });
-  };
+  const resetFilters=()=>{setSearchInput('');router.push('/search');};
+  const handlePageChange=(next:number)=>{if(next>0)applyFilters({page:next});};
 
   const addToWatchlist = async (ico: string) => {
     if (!user) {
       router.push('/auth/login?redirect=/search');
       return;
     }
+    if(adding.current)return;
+    adding.current=true;
     setAddingIco(ico);
     try {
       await api.watchlist.add(ico);
-      setWatchlist((prev) => [...prev, ico]);
+      setWatchlist((prev) => Array.from(new Set([...prev, ico])));
     } catch (err) {
-      console.error('Failed:', err);
+      if(err instanceof ApiError && err.status===409)setWatchlist(prev=>Array.from(new Set([...prev,ico])));
+      else setError(String(err));
     } finally {
+      adding.current=false;
       setAddingIco(null);
     }
   };
@@ -210,6 +173,7 @@ function SearchContent() {
         user={user}
       />
 
+      <RequestFeedback loading={loading} error={error} onRetry={()=>setRetry(n=>n+1)} />
       <SearchMainContent
         t={t}
         total={total}
@@ -224,7 +188,7 @@ function SearchContent() {
         legalFormOptions={legalFormOptions}
         employeesOptions={employeesOptions}
         loading={loading}
-        companies={companies}
+        companies={error ? [] : companies}
         watchlist={watchlist}
         addingIco={addingIco}
         totalPages={totalPages}

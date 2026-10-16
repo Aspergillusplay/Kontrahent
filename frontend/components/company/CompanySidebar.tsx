@@ -8,7 +8,7 @@ import { useI18n } from '../../lib/i18n/provider';
 
 type EventCardProps = {
   label: string;
-  value: number;
+  value?: number;
   dangerClass: string;
   normalClass?: string;
   icon: ReactNode;
@@ -25,14 +25,14 @@ function EventCard({ label, value, dangerClass, normalClass, icon }: EventCardPr
         {icon}
         <span className="text-sm font-medium">{label}</span>
       </div>
-      <span className="font-bold font-mono">{value}</span>
+      <span className="font-bold font-mono">{value ?? '—'}</span>
     </div>
   );
 }
 
 type BinaryIndicatorCardProps = {
   label: string;
-  value: boolean;
+  value?: boolean;
   trueLabel: string;
   falseLabel: string;
 };
@@ -40,7 +40,7 @@ type BinaryIndicatorCardProps = {
 function BinaryIndicatorCard({ label, value, trueLabel, falseLabel }: BinaryIndicatorCardProps) {
   return (
     <div className="bg-slate-900/50 p-3 rounded-lg text-center border border-slate-800/50">
-      <div className={`text-sm font-bold ${value ? 'text-red-400' : 'text-emerald-400'}`}>{value ? trueLabel : falseLabel}</div>
+      <div className={`text-sm font-bold ${value === undefined ? 'text-slate-400' : value ? 'text-red-400' : 'text-emerald-400'}`}>{value === undefined ? '—' : value ? trueLabel : falseLabel}</div>
       <div className="text-[9px] uppercase text-slate-500 mt-1 font-bold">{label}</div>
     </div>
   );
@@ -58,7 +58,7 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
     .toUpperCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
-  const dphDisplayValue = !rawDphStatus || normalizedDphStatus === 'NIE'
+  const dphDisplayValue = !rawDphStatus ? '—' : normalizedDphStatus === 'NIE'
     ? t('common.no')
     : normalizedDphStatus === 'ANO'
     ? t('common.yes')
@@ -73,19 +73,19 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
         <div className="space-y-3">
           <EventCard
             label={t('company.bankruptcies')}
-            value={company.events_detail?.bankruptcies || 0}
+            value={company.events_detail?.bankruptcies}
             dangerClass="bg-red-500/10 border border-red-500/20 text-red-400"
             icon={<AlertTriangle className="w-4 h-4" />}
           />
           <EventCard
             label={t('company.debtsClaims')}
-            value={company.events_detail?.debts || 0}
+            value={company.events_detail?.debts}
             dangerClass="bg-orange-500/10 border border-orange-500/20 text-orange-400"
             icon={<Zap className="w-4 h-4" />}
           />
           <EventCard
             label={t('company.courtDecisions')}
-            value={company.events_detail?.court_decisions || 0}
+            value={company.events_detail?.court_decisions}
             dangerClass="bg-yellow-500/10 border border-yellow-500/20 text-yellow-300"
             icon={<ShieldCheck className="w-4 h-4" />}
           />
@@ -98,7 +98,7 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
                   : 'bg-slate-900/50 border-slate-800 text-slate-400'
               }`}
             >
-              <div className="text-sm font-bold">{company.events_detail?.payment_orders || 0}</div>
+              <div className="text-sm font-bold">{company.events_detail?.payment_orders ?? '—'}</div>
               <div className="text-[9px] uppercase mt-1 font-bold">{t('company.paymentOrders')}</div>
             </div>
             <div
@@ -108,25 +108,25 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
                   : 'bg-slate-900/50 border-slate-800 text-slate-400'
               }`}
             >
-              <div className="text-sm font-bold">{company.events_detail?.executions || 0}</div>
+              <div className="text-sm font-bold">{company.events_detail?.executions ?? '—'}</div>
               <div className="text-[9px] uppercase mt-1 font-bold">{t('company.enforcements')}</div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-            <BinaryIndicatorCard label={t('company.indicatorDebts')} value={!!company.dlhy_nedoplatky} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
-            <BinaryIndicatorCard label={t('company.indicatorState')} value={!!company.pohladavky_statu} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
+            <BinaryIndicatorCard label={t('company.indicatorDebts')} value={debtSummary.total > 0 ? true : undefined} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
+            <BinaryIndicatorCard label={t('company.indicatorState')} value={company.pohladavky_statu} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
             <div className="bg-slate-900/50 p-3 rounded-lg text-center border border-slate-800/50">
               <div
                 className={`text-sm font-bold ${
-                  company.dph_status && company.dph_status !== 'NIE' ? 'text-orange-400' : 'text-emerald-400'
+                  !company.dph_status ? 'text-slate-400' : company.dph_status !== 'NIE' ? 'text-orange-400' : 'text-emerald-400'
                 }`}
               >
                 {dphDisplayValue}
               </div>
               <div className="text-[9px] uppercase text-slate-500 mt-1 font-bold">{t('company.vatRegistry')}</div>
             </div>
-            <BinaryIndicatorCard label={t('company.indicatorProtection')} value={!!company.has_docasna_ochrana} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
+            <BinaryIndicatorCard label={t('company.indicatorProtection')} value={company.has_docasna_ochrana} trueLabel={t('common.yes')} falseLabel={t('common.no')} />
           </div>
         </div>
       </div>
@@ -137,9 +137,9 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
         </h3>
 
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 mb-4">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">{t('company.totalDebt')}</div>
+          <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">{t('company.knownDebt')}</div>
           <div className={`text-xl font-mono font-bold ${debtSummary.total > 0 ? 'text-orange-300' : 'text-emerald-300'}`}>
-            {formatCurrency(debtSummary.total, locale)}
+            {debtSummary.total > 0 ? formatCurrency(debtSummary.total, locale) : '—'}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">{t('company.sourcesWithDebt', { count: debtSummary.sources_count })}</div>
         </div>
@@ -148,19 +148,19 @@ export default function CompanySidebar({ company, debtSummary }: CompanySidebarP
           <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800/50 rounded-lg p-3">
             <span className="text-slate-400">{t('company.taxRegistry')}</span>
             <span className={`font-mono font-bold ${debtSummary.tax > 0 ? 'text-red-400' : 'text-slate-200'}`}>
-              {formatCurrency(debtSummary.tax, locale)}
+              {company.data_quality?.debts?.tax?.status === 'verified' || company.data_quality?.debts?.tax?.status === 'stale' ? formatCurrency(debtSummary.tax, locale) : '—'}
             </span>
           </div>
           <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800/50 rounded-lg p-3">
             <span className="text-slate-400">{t('company.socialInsurance')}</span>
             <span className={`font-mono font-bold ${debtSummary.social > 0 ? 'text-red-400' : 'text-slate-200'}`}>
-              {formatCurrency(debtSummary.social, locale)}
+              {company.data_quality?.debts?.social?.status === 'verified' || company.data_quality?.debts?.social?.status === 'stale' ? formatCurrency(debtSummary.social, locale) : '—'}
             </span>
           </div>
           <div className="flex items-center justify-between bg-slate-900/40 border border-slate-800/50 rounded-lg p-3">
             <span className="text-slate-400">{t('company.healthInsurance')}</span>
             <span className={`font-mono font-bold ${debtSummary.health > 0 ? 'text-red-400' : 'text-slate-200'}`}>
-              {formatCurrency(debtSummary.health, locale)}
+              {company.data_quality?.debts?.health?.status === 'verified' || company.data_quality?.debts?.health?.status === 'stale' ? formatCurrency(debtSummary.health, locale) : '—'}
             </span>
           </div>
         </div>

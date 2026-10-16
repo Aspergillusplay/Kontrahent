@@ -47,6 +47,7 @@ pnpm-debug.log*
 # Temporary/debug artifacts
 tmp/
 temp/
+migrations/
 *.tmp
 *.bak
 *~
@@ -56,6 +57,7 @@ run_schema.js
 
 # PWA generated artifacts
 frontend/public/sw.js
+!frontend/public/sw.js
 frontend/public/sw.js.map
 frontend/public/workbox-*.js
 frontend/public/workbox-*.js.map
@@ -69,3 +71,7 @@ Thumbs.db
 *.swo
 .graphifyignore
 .ag
+
+# Versioned application migrations (other local migrations stay ignored)
+!supabase/migrations/
+!supabase/migrations/*.sql

@@ -53,18 +53,18 @@ export default function NotificationsAlertsPanel({
               <div className="flex items-start gap-4">
                 <div
                   className={`mt-1 p-2 rounded-lg ${
-                    alert.type === 'danger'
+                    alert.severity === 'critical'
                       ? 'bg-red-500/10 text-red-400'
-                      : alert.type === 'warning'
+                      : alert.severity === 'warning'
                         ? 'bg-yellow-500/10 text-yellow-400'
                         : 'bg-blue-500/10 text-blue-400'
                   }`}
                 >
-                  {alert.type === 'danger' ? <AlertCircle className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+                  {alert.severity === 'critical' ? <AlertCircle className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-semibold text-slate-100">{alert.title}</h4>
+                <div className="flex-1 min-w-0 break-words">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <h4 className="font-semibold text-slate-100">{alert.company_name || alert.title}</h4>
                     <span className="text-[10px] text-slate-500">
                       {new Date(alert.sent_at).toLocaleString(toIntlLocale(locale))}
                     </span>

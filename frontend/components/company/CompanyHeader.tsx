@@ -23,6 +23,7 @@ type CompanyHeaderProps = {
   isDemo: boolean;
   inWatchlist: boolean;
   refreshing: boolean;
+  adding?: boolean;
   onRefresh: () => void;
   onAddToWatchlist: () => void;
 };
@@ -32,6 +33,7 @@ export default function CompanyHeader({
   isDemo,
   inWatchlist,
   refreshing,
+  adding,
   onRefresh,
   onAddToWatchlist,
 }: CompanyHeaderProps) {
@@ -62,7 +64,7 @@ export default function CompanyHeader({
 
       <div className={`card border ${riskClass} mb-8`}>
         <div className="flex items-start justify-between gap-6 flex-wrap">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-3 flex-wrap">
               <RiskBadge score={company.risk_score} numericScore={company.risk_score_numeric} size="lg" />
               <span className="text-xs text-slate-500 font-mono bg-slate-800 px-2 py-1 rounded">ICO: {company.ico}</span>
@@ -78,7 +80,7 @@ export default function CompanyHeader({
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1 leading-tight tracking-tight text-slate-100">{company.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1 break-words leading-tight tracking-tight text-slate-100">{company.name}</h1>
             {company.historical_name && (
               <div className="flex items-center gap-2 text-slate-500 mb-4 text-xs font-medium">
                 <History className="w-3 h-3" />
@@ -99,7 +101,7 @@ export default function CompanyHeader({
                   <Calendar className="w-4 h-4 text-slate-500" /> {t('company.founded', { value: company.registration_date })}
                 </span>
               )}
-              {company.last_checked_at && (
+              {company.last_checked_at && !isNaN(Date.parse(company.last_checked_at)) && (
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-slate-500" />
                   {t('company.updated', { value: format(new Date(company.last_checked_at), 'd. MMM yyyy HH:mm', { locale: toDateFnsLocale(locale) }) })}
@@ -118,7 +120,7 @@ export default function CompanyHeader({
               {t('company.refresh')}
             </button>
             {!inWatchlist && (
-              <button onClick={onAddToWatchlist} className="btn-primary text-sm h-10 px-4 w-full sm:w-auto">
+              <button disabled={adding} onClick={onAddToWatchlist} className="btn-primary text-sm h-10 px-4 w-full sm:w-auto">
                 + {t('company.watch')}
               </button>
             )}

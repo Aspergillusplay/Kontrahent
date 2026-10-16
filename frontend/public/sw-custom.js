@@ -34,7 +34,8 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'dismiss') return;
 
-  const url = event.notification.data?.url || '/dashboard';
+  const target = new URL(event.notification.data?.url || '/dashboard', self.location.origin);
+  const url = target.origin === self.location.origin ? target.href : self.location.origin + '/dashboard';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
@@ -52,15 +53,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-
-// Background sync for offline watchlist operations
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-watchlist') {
-    event.waitUntil(syncWatchlist());
-  }
-});
-
-async function syncWatchlist() {
-  // Replay queued requests from IndexedDB when back online
-  console.log('[SW] Syncing watchlist changes...');
-}

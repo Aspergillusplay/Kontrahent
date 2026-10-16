@@ -13,7 +13,8 @@ export function formatCurrencyValue(value: number, locale: AppLocale): string {
   return new Intl.NumberFormat(toIntlLocale(locale), {
     style: 'currency',
     currency: 'EUR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 

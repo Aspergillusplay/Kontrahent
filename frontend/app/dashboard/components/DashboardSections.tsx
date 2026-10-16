@@ -73,7 +73,7 @@ export function DashboardHeaderActions({ t, isDemo, unreadAlerts, onSignOut }: D
 
   return (
     <>
-      <Link href="/notifications" className="relative btn-ghost p-2">
+      <Link href="/notifications" aria-label={t('notifications.alertHistory')} className="relative btn-ghost p-2">
         <Bell className="w-5 h-5" />
         {unreadAlerts > 0 && (
           <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center font-bold">
@@ -118,6 +118,7 @@ type DashboardSummarySectionProps = {
     red: number;
     yellow: number;
     green: number;
+    unknown: number;
   };
 };
 
@@ -143,8 +144,9 @@ export function DashboardSummarySection({
           {batchRefreshing ? t('dashboard.refreshing') : t('dashboard.refreshAll')}
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
+          { label: t('risk.unknown'), count: riskCounts.unknown, color: 'text-slate-300', bg: 'bg-slate-800/50 border-slate-700' },
           { label: t('dashboard.critical'), count: riskCounts.red, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
           {
             label: t('dashboard.warnings'),
@@ -168,7 +170,7 @@ type DashboardCompaniesListProps = {
   t: TranslateFn;
   loading: boolean;
   watchlist: any[];
-  onRemove: (ico: string) => Promise<void>;
+  onRemove?: (ico: string) => Promise<void>;
 };
 
 export function DashboardCompaniesList({ t, loading, watchlist, onRemove }: DashboardCompaniesListProps) {
@@ -205,14 +207,8 @@ export function DashboardCompaniesList({ t, loading, watchlist, onRemove }: Dash
         .map((item) => (
           <CompanyRow
             key={item.ico}
-            item={{
-              ...item,
-              companies: {
-                ...item.companies,
-                risk_score_numeric: item.companies?.raw_data?.risk_score_numeric,
-              },
-            }}
-            onRemove={() => onRemove(item.ico)}
+            item={item}
+            onRemove={onRemove ? () => onRemove(item.ico) : undefined}
           />
         ))}
     </div>

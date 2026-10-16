@@ -12,7 +12,10 @@ export default function PWARegistration() {
             return;
           }
 
-          const registration = await navigator.serviceWorker.register('/sw.js');
+          for (const name of await caches.keys()) {
+            if (name === 'api-data' || name === 'start-url') await caches.delete(name);
+          }
+          const registration = await navigator.serviceWorker.register('/service-worker.js');
           console.log('SW registered successfully:', registration.scope);
         } catch (error) {
           console.log('SW registration failed:', error);

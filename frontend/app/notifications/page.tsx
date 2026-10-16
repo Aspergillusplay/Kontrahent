@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from 'react';
+import RequestFeedback from '../../components/RequestFeedback';
 import NotificationsAlertsPanel from './components/NotificationsAlertsPanel';
 import NotificationsHeader from './components/NotificationsHeader';
 import NotificationsSettingsSidebar from './components/NotificationsSettingsSidebar';
@@ -10,6 +11,7 @@ import { getSupabase } from '../../lib/supabase';
 
 export default function NotificationsPage() {
   const { t, locale } = useI18n();
+  const [error, setError] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [telegramId, setTelegramId] = useState('');
@@ -37,18 +39,18 @@ export default function NotificationsPage() {
             }
           });
       } else {
-        window.location.href = '/auth/login';
+        window.location.href = '/auth/login?redirect=/notifications';
       }
-    });
+    }).catch(e => { setError(String(e)); setLoading(false); });
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
+    setLoading(true); setError(null);
     try {
       const data = await api.notifications.alerts();
       setAlerts(data);
     } catch (err) {
-      console.error(err);
+      setError(String(err));
     } finally {
       setLoading(false);
     }
@@ -78,7 +80,7 @@ export default function NotificationsPage() {
       const success = await registerPushNotifications();
       setPushStatus(success ? 'success' : 'error');
     } catch (err) {
-      console.error(err);
+      setError(String(err));
       setPushStatus('error');
     }
   };
@@ -91,17 +93,16 @@ export default function NotificationsPage() {
       if (res.success) {
         setTestSuccess(true);
         setTimeout(() => setTestSuccess(false), 3000);
-      }
+      } else { setError('delivery failed'); }
     } catch (err: any) {
-      console.error(err);
+      setError(String(err));
     } finally {
       setTestLoading(false);
     }
   };
 
   const markAllRead = async () => {
-    await api.notifications.markAllRead();
-    setAlerts((prev) => prev.map((a) => ({ ...a, is_read: true })));
+    try { await api.notifications.markAllRead(); setAlerts(prev => prev.map(a => ({...a, is_read:true}))); } catch(e) { setError(String(e)); }
   };
 
   return (
@@ -109,6 +110,7 @@ export default function NotificationsPage() {
       <NotificationsHeader t={t} />
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+        <RequestFeedback loading={loading} error={error} onRetry={loadData} />
         <div className="grid md:grid-cols-3 gap-8">
           <NotificationsSettingsSidebar
             t={t}
@@ -123,13 +125,13 @@ export default function NotificationsPage() {
             onSendTest={handleSendTest}
           />
 
-          <NotificationsAlertsPanel
+          {(!error || alerts.length > 0) && <NotificationsAlertsPanel
             t={t}
             locale={locale}
             alerts={alerts}
             loading={loading}
             onMarkAllRead={markAllRead}
-          />
+          />}
         </div>
       </main>
     </div>

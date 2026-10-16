@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { HealthController } from './health.controller';
 import { SupabaseModule } from './supabase/supabase.module';
 import { CompaniesModule } from './companies/companies.module';
 import { WatchlistModule } from './watchlist/watchlist.module';
@@ -10,6 +12,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
+  controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
   imports: [
     // Config - loads .env
     ConfigModule.forRoot({ isGlobal: true }),

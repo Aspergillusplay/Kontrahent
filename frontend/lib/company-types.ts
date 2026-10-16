@@ -1,4 +1,4 @@
-export type RiskScore = 'green' | 'yellow' | 'red';
+export type RiskScore = 'green' | 'yellow' | 'red' | 'unknown';
 
 export type CompanyChartPoint = {
   year: string;
@@ -76,7 +76,8 @@ export type CompanyDetails = {
   negative_equity?: boolean;
   assets?: number;
   financial_year?: string;
-  gross_margin?: number;
+  net_margin?: number;
+  data_quality?: { version?: number; stale?: boolean; identity?: {status: string; checked_at?: string}; financials?: {status: string; checked_at?: string}; debts?: Record<string, {status: string; checked_at?: string}> };
   dlhy_nedoplatky?: boolean;
   pohladavky_statu?: boolean;
   has_docasna_ochrana?: boolean;

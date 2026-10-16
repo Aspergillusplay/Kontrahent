@@ -6,12 +6,12 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS — allow frontend
+  app.enableShutdownHooks();
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  // Explicit deployment origins; arbitrary Vercel projects are not trusted.
   app.enableCors({
     origin: [
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      /\.vercel\.app$/,
-      /kontrahent\.sk$/,
+      ...(process.env.FRONTEND_URL || 'http://localhost:3000').split(',').map(value => value.trim()).filter(Boolean),
     ],
     credentials: true,
   });
@@ -39,7 +39,7 @@ async function bootstrap() {
   }
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`🚀 Backend running at: http://localhost:${port}`);
 }
 

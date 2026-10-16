@@ -1,16 +1,17 @@
 ﻿"use client";
 
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getSupabase } from '../../../lib/supabase';
 import { useI18n } from '../../../lib/i18n/provider';
 import AuthFormCard from './components/AuthFormCard';
 
-export default function AuthPage({ params }: { params: { action: string } }) {
+export default function AuthPage({ params }: { params: Promise<{action: string}> }) {
+  const resolvedParams = use(params);
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isLogin = params.action === 'login';
+  const isLogin = resolvedParams.action === 'login';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +24,7 @@ export default function AuthPage({ params }: { params: { action: string } }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
 
@@ -31,7 +33,9 @@ export default function AuthPage({ params }: { params: { action: string } }) {
         const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
 
-        const redirectTo = searchParams.get('redirect') || '/dashboard';
+        const requested = searchParams.get('redirect') || '/dashboard';
+        const target = new URL(requested.startsWith('/') ? requested : '/dashboard', window.location.origin);
+        const redirectTo = target.origin === window.location.origin ? target.pathname + target.search : '/dashboard';
         router.push(redirectTo);
       } else {
         const { error: authError } = await supabase.auth.signUp({
@@ -53,10 +57,13 @@ export default function AuthPage({ params }: { params: { action: string } }) {
   };
 
   const handleGoogleSignIn = async () => {
-    await supabase.auth.signInWithOAuth({
+    if (loading) return;
+    setLoading(true); setError('');
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+    if (oauthError) { setError(oauthError.message); setLoading(false); }
   };
 
   return (

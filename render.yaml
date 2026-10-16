@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: kontrahent-backend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BACKGROUND_JOBS_ENABLED
+        value: "true"
+      - key: TELEGRAM_BOT_POLLING_ENABLED
+        value: "false"
+      - key: FRONTEND_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: MAINTENANCE_SECRET
+        sync: false

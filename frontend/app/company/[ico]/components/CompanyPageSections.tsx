@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, Building2, Loader2 } from 'lucide-react';
 import AppHeader from '../../../../components/AppHeader';
 import CompanyBreakdownSection from '../../../../components/company/CompanyBreakdownSection';
+import DataQualityNotice from '../../../../components/company/DataQualityNotice';
 import CompanyHeader from '../../../../components/company/CompanyHeader';
 import CompanyHistoryTimeline from '../../../../components/company/CompanyHistoryTimeline';
 import CompanyOverview from '../../../../components/company/CompanyOverview';
@@ -64,6 +65,7 @@ type CompanyDetailsContentProps = {
   isDemo: boolean;
   inWatchlist: boolean;
   refreshing: boolean;
+  adding?: boolean;
   onRefresh: () => Promise<void>;
   onAddToWatchlist: () => Promise<void>;
 };
@@ -74,6 +76,7 @@ export function CompanyDetailsContent({
   isDemo,
   inWatchlist,
   refreshing,
+  adding,
   onRefresh,
   onAddToWatchlist,
 }: CompanyDetailsContentProps) {
@@ -86,10 +89,12 @@ export function CompanyDetailsContent({
         isDemo={isDemo}
         inWatchlist={inWatchlist}
         refreshing={refreshing}
+        adding={adding}
         onRefresh={onRefresh}
         onAddToWatchlist={onAddToWatchlist}
       />
 
+      <DataQualityNotice company={company} />
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
         <CompanyOverview company={company} />
         <CompanySidebar company={company} debtSummary={debtSummary} />

@@ -1,4 +1,5 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { requireIco } from '../companies/utils/company-data.utils';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CompaniesService } from '../companies/companies.service';
 
@@ -21,7 +22,7 @@ export class WatchlistService {
         notify_push,
         created_at,
         companies (
-          name, legal_form, city, status,
+          ico, name, legal_form, city, status,
           risk_score, risk_reasons,
           tax_debt, social_debt, health_debt,
           court_cases, is_bankrupt, is_in_liquidation,
@@ -32,7 +33,7 @@ export class WatchlistService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+    return (data || []).map(item => ({...item, companies: this.companies.formatCompany(item.companies)}));
   }
 
   /** Adds a company to watchlist and ensures company data exists in DB. */
@@ -41,7 +42,7 @@ export class WatchlistService {
     ico: string,
     alias?: string,
   ) {
-    const normalized = ico.padStart(8, '0');
+    const normalized = requireIco(ico);
 
     // Ensure company exists in our DB
     await this.companies.getCompany(normalized);
@@ -71,7 +72,7 @@ export class WatchlistService {
     ico: string,
     updates: { alias?: string; notify_telegram?: boolean; notify_push?: boolean },
   ) {
-    const normalized = ico.padStart(8, '0');
+    const normalized = requireIco(ico);
     const { data, error } = await this.supabase.db
       .from('watchlists')
       .update(updates)
@@ -87,7 +88,7 @@ export class WatchlistService {
 
   /** Removes a company from watchlist. */
   async removeFromWatchlist(userId: string, ico: string) {
-    const normalized = ico.padStart(8, '0');
+    const normalized = requireIco(ico);
     const { error } = await this.supabase.db
       .from('watchlists')
       .delete()

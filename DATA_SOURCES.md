@@ -1,113 +1,36 @@
-# Data Sources and Ingestion Logic
+# Data sources and integrity
 
-This document describes the current data-source architecture after migration away from HTML scraping.
+Last verified: 2026-10-14. Coverage is also explained to users at `/about-data`.
 
-## 1. Runtime flow by API use case
+| Source | Use | Limitations |
+| --- | --- | --- |
+| [RPO](https://api.statistics.sk/rpo/v1) | Name search, exact IČO identity/status | May time out; cached name matches remain available. |
+| [RUZ](https://www.registeruz.sk/cruz-public/home/api) | Exact IČO lookup, accounting statements and code lists | No global name search; some reports are PDF-only or use unsupported templates. |
+| [Sociálna poisťovňa](https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov) | Published social-insurance debt snapshot | Publication delays and thresholds apply. Absence is not a certificate of no debt. |
+| [Financial Administration](https://report.financnasprava.sk/ds_dsdd.zip) | Tax-debt ingestion when exact IČO is present | Inspected export lacks IČO. Tax debt is unavailable; names/addresses are never used to assign debt. |
+| Health insurance, VAT, courts | No verified connector | Shown as unavailable, never as zero, false or a low-risk verdict. |
 
-### Company search (`GET /companies/search`)
+## Serving data
 
-Primary source:
-- RPO API (Statistical Office of the Slovak Republic)
-  - `GET {RPO_API_BASE}/search`
-  - Main params used: `fullName`, `identifier`, `onlyActive`
+Directory filters and sorting run in PostgreSQL before pagination. The total covers indexed companies, not all Slovak registers. A first-page name/IČO query can add official identities; identity-only records have an unknown assessment. Identifiers must match exactly.
 
-Fallback chain:
-1. Local cache (`public.companies`)
-2. RUZ ICO lookup for numeric identifiers (`GET {RUZ_API_BASE}/uctovne-jednotky`)
+Checks share one in-flight request per IČO, allow at most four concurrent refreshes and bound external calls. A verified cache is reused for 24 hours. If both identity sources fail, the previous record remains visibly stale without advancing its timestamp. Legacy scraped financial and debt values are not exposed as verified data.
 
-Result enrichment:
-- Search results are enriched with local `risk_score` when available.
+RUZ reports are selected by accounting period, excluding consolidated reports and superseded filings for the same year. Supported templates use the current net column, preserve zero/negative values, and use total revenue or all required components. Pie charts require top-level components to reconcile with the total. Company pages display the actual financial year.
 
-### Company browse (`GET /companies/browse`)
+## Atomic persistence
 
-Primary source:
-- RUZ API (Register of financial statements)
-  - `GET {RUZ_API_BASE}/uctovne-jednotky`
-  - `GET {RUZ_API_BASE}/zostavajuce-id/uctovne-jednotky`
-  - `GET {RUZ_API_BASE}/uctovna-jednotka`
+- `save_company_snapshot` serializes each IČO, rejects late older requests, and commits company changes, verified history and alerts together.
+- Unique user/event keys prevent repeated identical checks from duplicating application alerts.
+- `debt_snapshot_rows` stages complete source imports; validated publication atomically changes `debt_sync_state`. Failed imports preserve the previous snapshot.
+- Social exports can contain separate registrations for one IČO. They are summed in integer cents and stored as one company total. Conflicting tax duplicates are rejected.
+- Internal tables use RLS and mutation RPCs are service-role only. Browser users access their own private records.
+- Invalid legacy history is soft-quarantined; other unverified history is retained but hidden.
 
-Enrichment:
-- Legal forms / organization sizes / regions from RUZ codelists:
-  - `/pravne-formy`
-  - `/velkosti-organizacie`
-  - `/kraje`
-- Local cached revenue is added to browse rows when available.
+## Monitoring
 
-### Company details (`GET /companies/:ico`, `GET /companies/:ico/refresh`)
+Vercel's daily authenticated maintenance request wakes the existing Render API and queues work. Startup and awake-process scheduling recover due work. Database leases prevent competing jobs; a persistent cursor spreads bounded company batches across runs. No Redis, paid worker or perpetual keep-alive loop is required.
 
-Data assembly pipeline:
-1. Read cached row from `public.companies`.
-2. Refresh from official sources:
-   - RPO entity search + detail:
-     - `GET {RPO_API_BASE}/search?identifier={ico}`
-     - `GET {RPO_API_BASE}/entity/{id}`
-   - RUZ accounting unit + statements:
-     - `GET {RUZ_API_BASE}/uctovne-jednotky`
-     - `GET {RUZ_API_BASE}/uctovna-jednotka`
-     - `GET {RUZ_API_BASE}/uctovna-zavierka`
-     - `GET {RUZ_API_BASE}/uctovny-vykaz`
-     - `GET {RUZ_API_BASE}/sablona`
-3. Resolve debt snapshot from official debtor feeds (tax/social) and local sync tables.
-4. Merge with existing `raw_data` without dropping previously captured fields.
+Source attempts run at most once per 23 hours. Monitoring reuses the 24-hour company cache; individual explicit refresh remains available. Notifications retain per-channel delivery flags. A provider cannot guarantee exactly-once delivery across a crash between sending and saving a receipt; database history/alert deduplication remains transactional.
 
-### Monitoring and debt-source sync
-
-Endpoints:
-- `GET /monitoring/status`
-- `POST /monitoring/sync`
-
-Background job:
-- Daily cron in `DataSyncService`: `0 2 * * *` (`Europe/Bratislava`)
-
-Sync targets:
-- `public.tax_debtors`
-- `public.social_debtors`
-
-Official source chain:
-1. Financial Administration (tax debtors)
-   - Primary: `https://report.financnasprava.sk/ds_dsdd.zip` (ZIP/XML)
-   - Fallback: legacy XML URL
-   - Fallback: legacy CSV URL
-2. Social Insurance Agency (social debtors)
-   - Direct export URL: `https://www.socpoist.sk/api/idsp/download/7946c279-f0b4-451a-b199-a317f675e6cf`
-
-## 2. Source matrix
-
-| Source | Access mode | Used for | Role |
-|---|---|---|---|
-| RPO API (`/search`, `/entity/{id}`) | HTTP JSON | Search, identity, status | Primary legal-entity source |
-| RUZ API (`/uctovne-jednotky`, `/uctovna-jednotka`, `/uctovna-zavierka`, `/uctovny-vykaz`, `/sablona`) | HTTP JSON | Browse, financials, profile enrichment | Primary accounting source |
-| Financial Administration debtor export | ZIP/XML (+ legacy XML/CSV) | Monitoring sync + fallback debt resolution | Official tax-debt source |
-| Social Insurance debtor export | ZIP/CSV | Monitoring sync + fallback debt resolution | Official social-debt source |
-
-## 3. Database persistence map
-
-Primary serving table:
-- `public.companies`
-
-Related product tables:
-- `public.company_history`
-- `public.watchlists`
-- `public.alerts`
-- `public.profiles`
-
-Snapshot and sync tables:
-- `public.tax_debtors`
-- `public.social_debtors`
-- `public.sync_log`
-
-## 4. Important implementation note
-
-`DataSyncService` keeps `tax_debtors` and `social_debtors` synchronized for monitoring and lookup.
-
-`CompaniesService`:
-- resolves identity/enrichment from RPO + RUZ,
-- resolves debts from synchronized tables and official feed fallbacks,
-- preserves previously captured fields in `raw_data` when new source payloads do not include them.
-
-## 5. Resilience strategy
-
-- Search fallback tiers: `RPO -> local cache -> RUZ ICO lookup`.
-- Browse fallback for text query: local cache augmentation.
-- Tax debtor feed fallback tiers: `ZIP/XML -> legacy XML -> legacy CSV`.
-- Company cache freshness logic with forced refresh when identity or enrichment is incomplete.
+See [operations](docs/reliability.md) for configuration, checks and limits.
