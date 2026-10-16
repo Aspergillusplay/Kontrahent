@@ -27,14 +27,14 @@ A maintenance call queues work in the existing API. A 10-minute database lease, 
 
 ## Database rollout
 
-Three versioned migrations were applied before this application release. Existing accounts/watchlists were preserved. Fifty-two malformed or duplicate history rows were soft-quarantined. Unverified legacy history remains stored but is not displayed.
+Four versioned migrations were applied before this application release. Existing accounts/watchlists were preserved. Fifty-two malformed or duplicate history rows were soft-quarantined. Unverified legacy history remains stored but is not displayed.
 
 The October 12 social-insurance export was imported October 13: 134,413 published rows produced 120,082 distinct identified IČOs. Rows without an IČO are not guessed. Thirty cached companies were rechecked; one unverified legacy identity remains excluded from directory browse.
 
 ## Verification
 
 - Seventeen backend regression tests passed: repayment to zero, missing values, identifier validation, financial columns/components, chart reconciliation, malformed/duplicate feed rows, concurrency, stale fallback, report selection and push endpoint validation.
-- PostgreSQL rollback tests passed for snapshot/history deduplication, late-result rejection, atomic source publication, leases and permissions.
+- PostgreSQL rollback tests passed for snapshot/history deduplication, late-result rejection, first-source baseline suppression, atomic source publication, leases and permissions.
 - Disposable-user integration passed for login, profile/watchlist isolation, private/admin denial, duplicate additions, list/update/delete, unsafe push rejection and alerts/read-all. Test users were removed.
 - Backend TypeScript and production frontend builds passed. Production-dependency audits returned zero known vulnerabilities at verification time.
 - Tailwind 3 development dependencies retain audit findings; they process repository-controlled styles and do not ship in the production server dependency tree. A Tailwind major migration is outside this repair.

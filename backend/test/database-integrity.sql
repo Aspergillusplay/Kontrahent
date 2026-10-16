@@ -28,6 +28,14 @@ begin
   if (select change_type from public.company_history where ico=company_ico and field_name='tax_debt')<>'improved' then raise exception 'Debt reduction is not an improvement'; end if;
   perform public.save_company_snapshot(snapshot||jsonb_build_object('tax_debt',999,'last_checked_at',old_stamp));
   if (select tax_debt from public.companies where ico=company_ico)<>0 then raise exception 'Older request overwrote newer data'; end if;
+  -- First observation of a source is a baseline, not a debt increase from zero.
+  snapshot:=snapshot||jsonb_build_object('social_debt',200,'risk_score','yellow','last_checked_at',old_stamp+interval '2 minutes',
+    'raw_data','{"data_quality":{"version":2,"debts":{"tax":{"status":"verified"},"social":{"status":"verified"}}},"financials":{"revenue":100}}'::jsonb);
+  perform public.save_company_snapshot(snapshot);
+  if exists(select 1 from public.company_history where ico=company_ico and field_name in ('social_debt','risk_score')) then raise exception 'First source coverage generated a false change'; end if;
+  snapshot:=snapshot||jsonb_build_object('social_debt',250,'last_checked_at',old_stamp+interval '3 minutes');
+  perform public.save_company_snapshot(snapshot);
+  if (select count(*) from public.company_history where ico=company_ico and field_name='social_debt')<>1 then raise exception 'Verified debt change missing'; end if;
   browse:=public.browse_company_cache('__integrity_fixture__',1,'sales-desc','','','');
   if (browse->>'total')::int<>1 or jsonb_array_length(browse->'companies')<>1 then raise exception 'Filtered total disagrees with results'; end if;
   if (public.browse_company_cache('__integrity_fixture__',1,'name','nonexistent region','','')->>'total')::int<>0 then raise exception 'Filter applied after pagination'; end if;
