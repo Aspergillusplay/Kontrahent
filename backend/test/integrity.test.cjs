@@ -113,3 +113,28 @@ test('legacy bankruptcy flags do not contaminate a refreshed assessment', () => 
   assert.equal(c.formatCompany(record).is_bankrupt,true);
   assert.equal(c.formatCompany(record).risk_score,'red');
 });
+
+test('a current company wins over historical branches sharing its ICO', () => {
+  const c=service();
+  const branch={id:590949,identifiers:[{value:'31320155'}],termination:'2003-08-20'};
+  const company={id:1039155,identifiers:[{value:'31320155'}]};
+  assert.equal(c.pickRpoEntity([branch,company],'31320155').id,1039155);
+  assert.equal(c.pickRpoEntity([company,branch],'31320155').id,1039155);
+  assert.equal(c.pickRpoEntity([branch],'31320155').id,590949);
+});
+
+test('ambiguous RPO identities are not chosen by result order', () => {
+  const c=service();
+  const a={id:1,identifiers:[{value:'12345678'}]},b={...a,id:2};
+  assert.equal(c.pickRpoEntity([a,b],'12345678'),undefined);
+  assert.equal(c.pickRpoEntity([a],'87654321'),undefined);
+  assert.equal(c.pickRpoEntity([{...a,termination:'2000-01-01'},{...b,termination:'2001-01-01'}],'12345678'),undefined);
+});
+
+test('RPO string streets, building numbers and postal code arrays form complete addresses', () => {
+  const c=service();
+  const current={validFrom:'1999-10-18',street:'Mlynské nivy',regNumber:0,buildingNumber:'1',postalCodes:['82990'],municipality:{value:'Bratislava'}};
+  const old={validFrom:'1992-03-25',validTo:'1997-06-17',street:'Nám. SNP',buildingNumber:'19'};
+  assert.deepEqual(c.extractRpoAddress({addresses:[old,current]}),{full:'Mlynské nivy 1 82990 Bratislava',city:'Bratislava'});
+  assert.equal(c.extractRpoAddress({addresses:[{...current,regNumber:123,buildingNumber:'4A'}]}).full,'Mlynské nivy 123/4A 82990 Bratislava');
+});

@@ -391,9 +391,7 @@ export class CompaniesService {
   private async fetchFromRpo(ico: string): Promise<any> {
     try {
       const entities = await this.fetchRpoSearch({ identifier: ico, onlyActive: false });
-      const picked =
-        entities.find((entity) => this.extractRpoIco(entity) === ico) ||
-        entities.find((entity) => this.extractRpoIco(entity) === this.normalizeIco(ico));
+      const picked = this.pickRpoEntity(entities, ico);
       if (!picked?.id) return {};
 
       const { data } = await axios.get(`${this.rpoBase}/entity/${picked.id}`, {
@@ -406,6 +404,7 @@ export class CompaniesService {
       });
 
       const entity = data || picked;
+      if (this.extractRpoIco(entity) !== ico) return {};
       const name = this.extractRpoName(entity) || this.extractRpoName(picked);
       const addressObj = this.extractRpoAddress(entity) || this.extractRpoAddress(picked);
       const legalForm = this.extractRpoLegalForm(entity) || this.extractRpoLegalForm(picked);
@@ -569,6 +568,17 @@ export class CompaniesService {
     };
   }
 
+  private pickRpoEntity(entities: any[], ico: string): any | undefined {
+    const matches = entities.filter(entity => this.extractRpoIco(entity) === ico);
+    const today = new Date().toISOString().slice(0, 10);
+    // Historical branches can share the company's ICO. Never choose by API order.
+    const current = matches.filter(entity => !entity.termination || this.extractRpoDate(entity.termination) > today);
+    if (current.length === 1) return current[0];
+    if (matches.length === 1) return matches[0];
+    // Ambiguous identities fall back to the exact accounting-register record.
+    return undefined;
+  }
+
   private extractRpoIco(entity: any): string {
     const identifiers = Array.isArray(entity?.identifiers) ? entity.identifiers : [];
     const candidate = identifiers
@@ -590,11 +600,13 @@ export class CompaniesService {
     if (!latest) return null;
 
     const formatted = this.normalizeSearchText(latest?.formattedAddress);
-    const street = this.normalizeSearchText(latest?.street?.value || '');
+    const street = this.normalizeSearchText(latest?.street?.value || latest?.street || '');
     const regNum = this.normalizeSearchText(latest?.regNumber || '');
+    const buildingNum = this.normalizeSearchText(latest?.buildingNumber || '');
+    const number = regNum && buildingNum ? `${regNum}/${buildingNum}` : regNum || buildingNum;
     const municipality = this.normalizeSearchText(latest?.municipality?.value || latest?.municipality || '');
-    const postalCode = this.normalizeSearchText(latest?.postalCode || '');
-    const manual = [street, regNum, postalCode, municipality].filter(Boolean).join(' ');
+    const postalCode = this.normalizeSearchText(latest?.postalCode || latest?.postalCodes?.[0] || '');
+    const manual = [street, number, postalCode, municipality].filter(Boolean).join(' ');
 
     return {
       full: formatted || this.normalizeSearchText(manual),
