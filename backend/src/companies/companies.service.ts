@@ -33,6 +33,7 @@ type BrowseParams = {
   employees: string;
   salesFrom: string;
   query: string;
+  indexedOnly?: boolean;
 };
 
 type BrowseCompanyItem = {
@@ -44,6 +45,8 @@ type BrowseCompanyItem = {
   sales: string;
   creation_date: string;
   source_url: string;
+  last_checked_at: string | null;
+  risk_score: string;
 };
 
 type BrowseResult = {
@@ -74,6 +77,8 @@ type RuzMappedRow = {
 type RuzStatementFinancial = {
   financials: Record<string, any>;
   rows: RuzMappedRow[];
+  attachments?: { id: number; name: string }[];
+  privateReportsOnly?: boolean;
   breakdown: {
     assets: { name: string; value: number }[];
     liabilities: { name: string; value: number }[];
@@ -85,6 +90,30 @@ export class CompaniesService {
   private readonly logger = new Logger(CompaniesService.name);
   private readonly requests = new AsyncLocalStorage<AbortSignal>();
   private readonly inFlight = new Map<string, Promise<CompanyRiskData>>();
+  private directoryCheck?: Promise<void>;
+
+  runDirectoryChecks(): Promise<void> {
+    if (!this.directoryCheck) {
+      this.directoryCheck = this.checkDueCompanies().finally(() => { this.directoryCheck = undefined; });
+    }
+    return this.directoryCheck;
+  }
+
+  private async checkDueCompanies() {
+    const deadline = Date.now() + 90_000;
+    for (let checked = 0; checked < 12 && Date.now() < deadline; checked++) {
+      const { data: ico, error } = await this.supabase.db.rpc('claim_directory_check');
+      if (error) throw new Error('Directory check queue is unavailable');
+      if (!ico) return;
+      try {
+        await this.getCompany(ico);
+      } catch {
+        this.logger.warn('Registry lookup will be retried for ' + ico);
+      }
+    }
+  }
+
+  private rpoRetryAt = 0;
   private readonly rpoBase: string;
   private readonly ruzBase: string;
   private readonly ruzDefaultSince = '2000-01-01';
@@ -147,14 +176,17 @@ export class CompaniesService {
     const page = Math.max(1, Math.min(5000, Math.floor(Number(params.page) || 1)));
     const query = this.normalizeSearchText(params.query).slice(0, 120);
     // Only identity fields are indexed from search. They are not a verified risk assessment.
-    if (query.length >= 2 && page === 1) {
+    if (!params.indexedOnly && query.length >= 2 && page === 1) {
       const matches = await this.search(query, 1);
       if (matches.length) {
-        const { error } = await this.supabase.db.from('companies').upsert(matches.map(row => ({
+        const { data: inserted, error } = await this.supabase.db.from('companies').upsert(matches.map(row => ({
           ico: row.ico, name: row.name, address: row.address, city: row.city,
           risk_score: 'unknown', raw_data: { data_quality: { version: 0 } },
-        })), { onConflict: 'ico', ignoreDuplicates: true });
+        })), { onConflict: 'ico', ignoreDuplicates: true }).select('ico');
         if (error) throw new ServiceUnavailableException('Company directory is unavailable');
+        if (inserted?.length && this.config.get('BACKGROUND_JOBS_ENABLED') === 'true') {
+          void this.runDirectoryChecks().catch(error => this.logger.warn(error.message));
+        }
       }
     }
     const { data, error } = await this.supabase.db.rpc('browse_company_cache', {
@@ -215,25 +247,32 @@ export class CompaniesService {
       this.fetchFromRpo(ico), this.fetchFromRuz(ico), this.resolveDebtSnapshot(ico, existing),
     ]);
     if (!rpo?.name && !ruz?.name) {
-      if (existing && !this.isInvalidIdentityName(existing.name)) {
+      if (existing?.raw_data?.data_quality?.version === 2 && !this.isInvalidIdentityName(existing.name)) {
         const cached = this.formatCompany(existing);
         return { ...cached, data_quality: { ...cached.data_quality, stale: true } };
       }
       throw new ServiceUnavailableException('Company could not be verified. Retry when the official registers are available.');
     }
     const old = existing?.raw_data || {};
-    const hasFinancials = ruz?.financials && ['revenue','profit','equity','assets'].some(k => Number.isFinite(ruz.financials[k]));
+    const hasFinancials = this.hasFinancialMetrics(ruz?.financials);
     const financials = hasFinancials
       ? ruz.financials : (old.data_quality?.version === 2 ? old.financials || {} : {});
     const name = this.pickFirstText(rpo.name, ruz.name, existing?.name);
-    const status = this.pickFirstText(rpo.status, ruz.status, existing?.status) || '';
+    const storedStatuses = old.data_quality?.version === 2 && !rpo.name
+      ? (old.rpo?.legal_statuses || []).filter(item => !item.validTo && (!item.validFrom || item.validFrom <= startedAt.slice(0, 10)))
+      : [];
+    const priorRegistryStatus = this.extractRpoStatus({ legalStatuses: storedStatuses });
+    const status = this.pickFirstText(rpo.status, ruz.status, priorRegistryStatus);
     const hasStatus = !!rpo.status;
-    const bankrupt = hasStatus ? !!rpo.is_bankrupt : (ruz.is_bankrupt || existing?.is_bankrupt || false);
-    const liquidation = hasStatus ? !!rpo.is_in_liquidation : (ruz.is_in_liquidation || existing?.is_in_liquidation || false);
+    const bankrupt = /konkurz|insolv/.test(this.normalizeLookup(status));
+    const liquidation = this.normalizeLookup(status).includes('likvid');
     const quality = {
       version: 2, stale: false,
-      identity: { status: rpo.name ? 'verified' : 'partial', checked_at: startedAt },
-      legal_status: { status: hasStatus ? 'verified' : ruz.status ? 'partial' : 'unavailable', checked_at: startedAt },
+      identity: { status: 'verified', source: rpo.name ? 'rpo' : 'ruz', checked_at: startedAt },
+      legal_status: {
+        status: hasStatus ? 'verified' : ruz.status ? 'partial' : priorRegistryStatus ? 'stale' : 'unavailable',
+        checked_at: hasStatus || ruz.status ? startedAt : old.rpo?.last_sync_at,
+      },
       financials: { status: hasFinancials ? 'verified' : Object.keys(financials).length ? 'stale' : 'unavailable', checked_at: hasFinancials ? ruz?.raw?.last_sync_at : old.data_quality?.financials?.checked_at },
       debts: debts.quality,
       legal_events: { status: 'unavailable' }, vat: { status: 'unavailable' },
@@ -389,6 +428,7 @@ export class CompaniesService {
   }
 
   private async fetchFromRpo(ico: string): Promise<any> {
+    if (Date.now() < this.rpoRetryAt) return {};
     try {
       const entities = await this.fetchRpoSearch({ identifier: ico, onlyActive: false });
       const picked = this.pickRpoEntity(entities, ico);
@@ -439,6 +479,12 @@ export class CompaniesService {
         },
       };
     } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 429) {
+        const retryAfter = e.response.headers['retry-after'];
+        const seconds = Number(retryAfter);
+        const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now();
+        this.rpoRetryAt = Date.now() + Math.max(60000, Number.isFinite(delay) ? delay : 0);
+      }
       this.logger.warn(`RPO company fetch failed for ${ico}: ${this.getErrorMessage(e)}`);
       return {};
     }
@@ -463,18 +509,16 @@ export class CompaniesService {
         : [];
 
       const rankedStatements = await this.fetchRuzStatementsForFinancials(statementIds, 8);
-      const latestStatement = rankedStatements[0] || null;
-      let latestFinancial: RuzStatementFinancial = {
-        financials: {},
-        rows: [],
-        breakdown: { assets: [], liabilities: [] },
-      };
-
-      if (latestStatement) {
-        latestFinancial = await this.fetchRuzStatementFinancial(latestStatement);
+      const reports = [];
+      for (const statement of rankedStatements.slice(0, 5)) {
+        reports.push(await this.fetchRuzStatementFinancial(statement));
       }
-
-      const historyData = await this.buildRuzHistoryFromStatements(rankedStatements.slice(0, 5));
+      const latestStatement = rankedStatements[0];
+      const latestFiling = reports[0];
+      // Metrics and charts use one individual filing per year. Keep the actual
+      // metrics year when a newer filing publishes documents without structured figures.
+      const readable = reports.find(report => this.hasFinancialMetrics(report.financials));
+      const historyData = this.buildRuzHistory(reports);
       const statusFromName = this.deriveStatusFromName(unit.nazovUJ);
 
       return {
@@ -488,10 +532,10 @@ export class CompaniesService {
         sk_nace: this.normalizeSearchText(unit.skNace),
         registration_date: this.normalizeSearchText(unit.datumZalozenia),
         employees: this.normalizeSearchText(sizeMap.get(unit.velkostOrganizacie || '') || unit.velkostOrganizacie || ''),
-        financials: latestFinancial.financials,
+        financials: readable?.financials,
         history_data: historyData,
-        breakdown: latestFinancial.breakdown,
-        mapped_rows: latestFinancial.rows,
+        breakdown: readable?.breakdown,
+        mapped_rows: readable?.rows,
         is_bankrupt: this.normalizeLookup(statusFromName).includes('konkurz'),
         is_in_liquidation: this.normalizeLookup(statusFromName).includes('likvid'),
         events_detail: {
@@ -512,6 +556,12 @@ export class CompaniesService {
           annual_report_count: Array.isArray(unit.idVyrocnychSprav) ? unit.idVyrocnychSprav.length : 0,
           statement_ids: statementIds,
           latest_statement: latestStatement,
+          filing: {
+            year: latestStatement ? this.extractStatementYear(latestStatement) : undefined,
+            state: !statementIds.length ? 'no_public_filing' : latestFiling?.attachments?.length ? 'documents'
+              : latestFiling?.privateReportsOnly ? 'private' : 'registered',
+            attachments: latestFiling?.attachments || [],
+          },
         },
       };
     } catch (e) {
@@ -622,7 +672,8 @@ export class CompaniesService {
 
   private extractRpoStatus(entity: any): string {
     const statuses = Array.isArray(entity?.legalStatuses) ? entity.legalStatuses : [];
-    const latest = this.pickLatestByValidity(statuses);
+    const today = new Date().toISOString().slice(0, 10);
+    const latest = this.pickLatestByValidity(statuses.filter(item => (!item.validTo || item.validTo >= today) && (!item.validFrom || item.validFrom <= today)));
     return this.normalizeSearchText(latest?.value?.value || latest?.value || '');
   }
 
@@ -770,9 +821,21 @@ export class CompaniesService {
       : [];
 
     const mappedRows: RuzMappedRow[] = [];
+    const attachments = new Map<string, { id: number; name: string }>();
+    let privateReports = 0;
     for (const reportId of reportIds) {
       const report = await this.fetchRuzReport(reportId);
-      if (!report || !Array.isArray(report?.obsah?.tabulky) || report.obsah.tabulky.length === 0) continue;
+      if (!report || Number(report.idUctovnejZavierky) !== Number(statement.id)) continue;
+      if (report.pristupnostDat === 'Neverejné') {
+        privateReports++;
+        continue;
+      }
+      for (const file of report.prilohy || []) {
+        if (!Number.isSafeInteger(file.id) || file.id <= 0 || !['application/pdf', 'application/zip', 'application/x-zip-compressed'].includes(file.mimeType)) continue;
+        const key = file.digest || String(file.id);
+        if (!attachments.has(key)) attachments.set(key, { id: file.id, name: String(file.meno || file.mimeType) });
+      }
+      if (!Array.isArray(report?.obsah?.tabulky) || report.obsah.tabulky.length === 0) continue;
       const templateId = Number(report.idSablony);
       const template = templateId ? await this.fetchRuzTemplate(templateId) : null;
       mappedRows.push(...this.mapRuzReportRows(report, template));
@@ -799,6 +862,8 @@ export class CompaniesService {
     return {
       financials,
       rows: mappedRows,
+      attachments: [...attachments.values()],
+      privateReportsOnly: reportIds.length > 0 && privateReports === reportIds.length,
       breakdown: this.extractBreakdownFromMappedRows(mappedRows),
     };
   }
@@ -882,39 +947,17 @@ export class CompaniesService {
     return extractBreakdown(rows);
   }
 
-  private async buildRuzHistoryFromStatements(statements: any[]): Promise<{ revenue: any[]; profit: any[] }> {
-    const revenue: { year: string; value: number }[] = [];
-    const profit: { year: string; value: number }[] = [];
+  private hasFinancialMetrics(financials?: Record<string, any>) {
+    return ['revenue', 'profit', 'equity', 'assets'].some(key => Number.isFinite(financials?.[key]));
+  }
 
-    for (const statement of statements) {
-      const year = this.extractStatementYear(statement);
-      if (!year) continue;
-
-      const data = await this.fetchRuzStatementFinancial(statement);
-      const revValue = this.toNumber(data.financials?.revenue || 0);
-      const profitValue = this.toNumber(data.financials?.profit || 0);
-      if (data.financials?.revenue !== undefined) {
-        revenue.push({ year, value: revValue });
-      }
-      if (data.financials?.profit !== undefined) {
-        profit.push({ year, value: profitValue });
-      }
-    }
-
-    const dedupe = (rows: { year: string; value: number }[]) => {
-      const byYear = new Map<string, number>();
-      for (const row of rows) {
-        if (!byYear.has(row.year)) byYear.set(row.year, row.value);
-      }
-      return [...byYear.entries()]
-        .map(([year, value]) => ({ year, value }))
-        .sort((a, b) => a.year.localeCompare(b.year));
-    };
-
-    return {
-      revenue: dedupe(revenue),
-      profit: dedupe(profit),
-    };
+  private buildRuzHistory(reports: RuzStatementFinancial[]) {
+    const series = (metric: 'revenue' | 'profit') => reports.flatMap(({financials}) => {
+      const year = financials.financial_year;
+      const value = financials[metric];
+      return year && Number.isFinite(value) ? [{year: String(year), value: Number(value)}] : [];
+    }).sort((a, b) => a.year.localeCompare(b.year));
+    return {revenue: series('revenue'), profit: series('profit')};
   }
 
   private extractStatementYear(statement: any): string {
@@ -1051,8 +1094,24 @@ export class CompaniesService {
     }
 
     const coverage = data?.raw_data?.data_quality;
+    // A verified adverse signal remains actionable even with incomplete source coverage.
+    if (score >= 80 && reasons.length) {
+      return { risk_score: 'yellow', risk_score_numeric: score, risk_reasons: reasons };
+    }
     if (score >= 80 && (!coverage || coverage.identity?.status !== 'verified' ||
         ['tax', 'social', 'health'].some(source => coverage.debts?.[source]?.status !== 'verified'))) {
+      const recent = (date?: string, days = 7) => {
+        const age = Date.now() - Date.parse(date || '');
+        return age >= 0 && age < days * 86400000;
+      };
+      const checkedDebt = Object.values(coverage?.debts || {}).some((s: any) =>
+        s.status === 'verified' && recent(s.checked_at));
+      const checkedEquity = coverage?.financials?.status === 'verified' &&
+        Number.isFinite(financials.equity) && Number(financials.financial_year) >= new Date().getUTCFullYear() - 2 &&
+        recent(coverage.financials.checked_at);
+      if (coverage?.identity?.status === 'verified' && (checkedDebt || checkedEquity)) {
+        return { risk_score: 'partial', risk_score_numeric: undefined, risk_reasons: ['No adverse indicators in the checked sources; coverage is partial'] };
+      }
       return { risk_score: 'unknown', risk_score_numeric: undefined, risk_reasons: ['Insufficient verified data for a complete risk assessment'] };
     }
     score = Math.max(1, Math.min(100, score));
@@ -1088,6 +1147,8 @@ export class CompaniesService {
       address: displayAddress,
       city: row.city,
       status: legalStatus.status,
+      filing: valid ? d.ruz?.filing : undefined,
+      registry_unit_id: valid && Number.isSafeInteger(d.ruz?.unit?.id) ? d.ruz.unit.id : undefined,
       data_quality: d.data_quality || { version: 0, stale: true },
       risk_score: risk.risk_score,
       risk_score_numeric: risk.risk_score_numeric,
@@ -1152,7 +1213,7 @@ export class CompaniesService {
     const raw = row.raw_data || {};
     if (raw.data_quality?.version !== 2) return { status: '', bankrupt: undefined, liquidation: undefined };
     // A registry status is evidence; a legacy boolean or a scraped event count is not.
-    const verified = raw.data_quality?.legal_status?.status === 'verified';
+    const verified = ['verified', 'stale'].includes(raw.data_quality?.legal_status?.status);
     const status = verified ? String(row.status || '') : this.deriveStatusFromName(raw.ruz?.unit?.nazovUJ || '');
     const normalized = this.normalizeLookup(status);
     return { status, bankrupt: status ? normalized.includes('konkurz') || normalized.includes('insolv') : undefined,

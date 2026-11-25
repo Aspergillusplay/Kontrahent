@@ -119,6 +119,7 @@ type DashboardSummarySectionProps = {
     yellow: number;
     green: number;
     unknown: number;
+    partial: number;
   };
 };
 
@@ -144,8 +145,9 @@ export function DashboardSummarySection({
           {batchRefreshing ? t('dashboard.refreshing') : t('dashboard.refreshAll')}
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {[
+          { label: t('risk.partial'), count: riskCounts.partial, color: 'text-blue-300', bg: 'bg-blue-500/10 border-blue-500/20' },
           { label: t('risk.unknown'), count: riskCounts.unknown, color: 'text-slate-300', bg: 'bg-slate-800/50 border-slate-700' },
           { label: t('dashboard.critical'), count: riskCounts.red, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
           {

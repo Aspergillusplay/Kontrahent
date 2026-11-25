@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import AppHeader from '../../../components/AppHeader';
 
+function directoryAssessment(company: {last_checked_at?: string; risk_score?: string}, t: TranslateFn) {
+  if (!company.last_checked_at) return t('company.queued');
+  const labels: Record<string,string> = {partial:'risk.partial', red:'risk.critical', yellow:'risk.warning', green:'risk.safe'};
+  return t(labels[company.risk_score || ''] || 'risk.unknown');
+}
+
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 type SearchHeaderBarProps = {
@@ -241,6 +247,7 @@ export function SearchMainContent({
                       <Link href={`/company/${c.ico}`} className="font-medium text-slate-100 hover:text-brand-400 transition-colors">
                         {c.name}
                       </Link>
+                      <div className="mt-1 text-xs text-slate-400">{directoryAssessment(c, t)}</div>
                     </td>
                     <td className="px-4 py-3 font-mono text-brand-400 text-xs">{c.ico}</td>
                     <td className="px-4 py-3 text-slate-400">{c.city || '—'}</td>
@@ -282,6 +289,7 @@ export function SearchMainContent({
                   <Link href={`/company/${c.ico}`} className="font-bold text-slate-100 hover:text-brand-400 transition-colors text-sm leading-tight">
                     {c.name}
                   </Link>
+                  <span className="text-xs text-slate-400">{directoryAssessment(c, t)}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     {watchlist.includes(c.ico) ? (
                       <span className="text-green-400 text-xs flex items-center gap-1">

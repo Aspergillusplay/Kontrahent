@@ -48,6 +48,7 @@ export class CompaniesController {
     @Query('employees') employees?: string,
     @Query('salesFrom') salesFrom?: string,
     @Query('q') q?: string,
+    @Query('indexedOnly') indexedOnly?: string,
   ) {
     const pageNumber = page ? parseInt(page, 10) : 1;
     return this.companiesService.browseRegistryDatabase({
@@ -59,6 +60,7 @@ export class CompaniesController {
       employees: employees || '',
       salesFrom: salesFrom || '',
       query: q || '',
+      indexedOnly: indexedOnly === 'true',
     });
   }
 

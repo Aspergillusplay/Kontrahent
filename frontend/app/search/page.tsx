@@ -87,15 +87,34 @@ function SearchContent() {
   const query=searchParams.get('q') || '';
   const [searchInput,setSearchInput]=useState(query);
   useEffect(()=>setSearchInput(query),[query]);
-  useEffect(()=>{
-    const controller=new AbortController();
-    setLoading(true);setError(null);
-    api.companies.browse({page,sort,region,legalForm,employees,q:query},controller.signal)
-      .then(data=>{if(!controller.signal.aborted)setResults(data);})
-      .catch(err=>{if(!controller.signal.aborted)setError(String(err.message));})
-      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
-    return ()=>controller.abort();
-  },[page,sort,region,legalForm,employees,query,retry]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const delays = [5_000, 15_000, 30_000];
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async (attempt: number) => {
+      try {
+        const data = await api.companies.browse({
+          page, sort, region, legalForm, employees, q: query, indexedOnly: attempt > 0,
+        }, controller.signal);
+        if (controller.signal.aborted) return;
+        setResults(data);
+        if (attempt < delays.length && data.companies.some((row: {last_checked_at?: string}) => !row.last_checked_at)) {
+          timer = setTimeout(() => void load(attempt + 1), delays[attempt]);
+        }
+      } catch (err) {
+        if (attempt === 0 && !controller.signal.aborted) setError(String(err instanceof Error ? err.message : err));
+      } finally {
+        if (!controller.signal.aborted && attempt === 0) setLoading(false);
+      }
+    };
+    setError(null);
+    setLoading(true);
+    void load(0);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [page, sort, region, legalForm, employees, query, retry]);
   useEffect(()=>{
     let active=true;
     getSupabase().auth.getUser().then(async ({data})=>{

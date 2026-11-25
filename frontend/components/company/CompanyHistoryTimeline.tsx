@@ -18,7 +18,7 @@ export default function CompanyHistoryTimeline({ history }: CompanyHistoryTimeli
     if (raw == null || raw === '') return '—';
     if (entry.field_name.endsWith('_debt') && Number.isFinite(Number(raw))) return formatCurrencyValue(Number(raw), locale);
     if (raw === 'true' || raw === 'false') return t(raw === 'true' ? 'common.yes' : 'common.no');
-    if (entry.field_name === 'risk_score') return t(({green:'risk.safe',yellow:'risk.warning',red:'risk.critical',unknown:'risk.unknown'} as Record<string,string>)[raw] || 'risk.unknown');
+    if (entry.field_name === 'risk_score') return t(({green:'risk.safe',yellow:'risk.warning',red:'risk.critical',partial:'risk.partial',unknown:'risk.unknown'} as Record<string,string>)[raw] || 'risk.unknown');
     return raw;
   };
 

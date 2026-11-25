@@ -4,6 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { randomUUID } from 'crypto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { DataSyncService } from './data-sync.service';
+import { CompaniesService } from '../companies/companies.service';
 import { MonitoringService } from './monitoring.service';
 
 @Injectable()
@@ -11,7 +12,7 @@ export class JobsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(JobsService.name);
   private running: Promise<any> | null = null;
   constructor(private db: SupabaseService, private config: ConfigService,
-    private sync: DataSyncService, private monitoring: MonitoringService) {}
+    private sync: DataSyncService, private monitoring: MonitoringService, private companies: CompaniesService) {}
   onApplicationBootstrap() {
     if(this.config.get('BACKGROUND_JOBS_ENABLED') === 'true') {
       const timer=setTimeout(()=>void this.runDue().catch(e=>this.logger.error(e.message)),10000);
@@ -39,7 +40,9 @@ export class JobsService implements OnApplicationBootstrap {
       const due=!last.completed_at || Date.now()-Date.parse(last.completed_at)>=23*3600000;
       const deadline=Date.now()+5*60000;
       const sources=due ? await this.sync.syncAll() : undefined;
+      const directory = this.companies.runDirectoryChecks().catch(error => this.logger.warn(error.message));
       const result=await this.monitoring.runNightlyMonitoring(deadline);
+      await directory;
       success=due;
       return {status:'completed',sources,...result};
     } finally {

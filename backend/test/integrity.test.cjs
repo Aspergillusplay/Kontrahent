@@ -138,3 +138,41 @@ test('RPO string streets, building numbers and postal code arrays form complete 
   assert.deepEqual(c.extractRpoAddress({addresses:[old,current]}),{full:'Mlynské nivy 1 82990 Bratislava',city:'Bratislava'});
   assert.equal(c.extractRpoAddress({addresses:[{...current,regNumber:123,buildingNumber:'4A'}]}).full,'Mlynské nivy 123/4A 82990 Bratislava');
 });
+
+test('partial screening needs a verified identity and current risk evidence', () => {
+  const c=service();
+  const checked_at=new Date().toISOString();
+  const quality={version:2,identity:{status:'verified'},debts:{social:{status:'verified',checked_at}}};
+  const row={ico:'12345678',name:'A',raw_data:{data_quality:quality},social_debt:0};
+  assert.equal(c.formatCompany(row).risk_score,'partial');
+  assert.equal(c.formatCompany(row).risk_score_numeric,undefined);
+  quality.debts.social.checked_at='2020-01-01';
+  assert.equal(c.formatCompany(row).risk_score,'unknown');
+});
+
+test('negative equity remains a warning even when some registries are unavailable', () => {
+  const row={ico:'12345678',name:'A',raw_data:{data_quality:{version:2},financials:{equity:-100}}};
+  assert.equal(service().formatCompany(row).risk_score,'yellow');
+});
+
+test('filings expose public PDF and ZIP documents once and exclude other statements and private files', async () => {
+  const c=service();
+  const pdf={id:10,mimeType:'application/pdf',digest:'a',meno:'Report.pdf'};
+  const zip={id:11,mimeType:'application/zip',digest:'b',meno:'Statement.zip'};
+  const reports=[
+    {idUctovnejZavierky:1,prilohy:[pdf,zip,{...pdf,id:12}]},
+    {idUctovnejZavierky:2,prilohy:[{...pdf,id:13,digest:'c'}]},
+    {idUctovnejZavierky:1,pristupnostDat:'Neverejné',prilohy:[{...pdf,id:14,digest:'d'}]},
+  ];
+  c.fetchRuzReport=async id=>reports[id-1];
+  const financial=await c.fetchRuzStatementFinancial({id:1,idUctovnychVykazov:[1,2,3]});
+  assert.deepEqual(financial.attachments.map(a=>a.id),[10,11]);
+  assert.equal(financial.financials.revenue,undefined);
+});
+
+test('a search-only row cannot be returned as a completed check during an outage', async () => {
+  const c=service(),seed={ico:'12345678',name:'A',raw_data:{data_quality:{version:0}}};
+  c.supabase={db:{from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:seed})})})})}};
+  c.fetchFromRpo=async()=>({}); c.fetchFromRuz=async()=>({}); c.resolveDebtSnapshot=async()=>({});
+  await assert.rejects(c.getCompany(seed.ico), /could not be verified/);
+});

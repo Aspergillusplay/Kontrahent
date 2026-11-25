@@ -168,30 +168,39 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {metrics.map((metric) => (
+      {company.filing && <section className="card space-y-2">
+        <h3 className="font-semibold">{t('company.financialStatements')} {company.filing.year}</h3>
+        <p className="text-sm text-slate-400">{t('company.filing.' + company.filing.state)}</p>
+        {company.filing.attachments.map(file => <a key={file.id} className="block text-sm text-brand-400 underline" target="_blank" rel="noreferrer"
+          href={'https://www.registeruz.sk/cruz-public/domain/financialreport/attachment/' + file.id}>{file.name}</a>)}
+        {company.registry_unit_id && <a className="inline-block text-sm underline" target="_blank" rel="noreferrer"
+          href={'https://www.registeruz.sk/cruz-public/domain/accountingentity/show/' + company.registry_unit_id}>{t('company.openRuz')}</a>}
+      </section>}
+      {metrics.some(metric => metric.value !== '—') && company.financial_year && <h3 className="text-sm font-semibold">{t('company.financialYear', {value: company.financial_year})}</h3>}
+      {metrics.some(metric => metric.value !== '—') && <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {metrics.filter(metric => metric.value !== '—').map((metric) => (
           <div key={metric.label} className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">
             <div className={`text-base font-bold font-mono break-words ${metric.color || 'text-slate-100'}`}>{metric.value}</div>
             <div className="text-[10px] uppercase font-bold text-slate-500 mt-1 tracking-wider">{metric.label}</div>
           </div>
         ))}
-      </div>
+      </div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <HistoryChartCard
+        {!!company.history_data?.revenue?.length && <HistoryChartCard
           title={t('company.chart.revenueTrend')}
           iconClass="text-blue-500"
           gradientId="revenueTrend"
           stroke="#3b82f6"
           data={company.history_data?.revenue || []}
-        />
-        <HistoryChartCard
+        />}
+        {!!company.history_data?.profit?.length && <HistoryChartCard
           title={t('company.chart.profitTrend')}
           iconClass="text-emerald-500"
           gradientId="profitTrend"
           stroke="#10b981"
           data={company.history_data?.profit || []}
-        />
+        />}
       </div>
     </div>
   );
