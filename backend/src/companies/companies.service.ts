@@ -33,6 +33,7 @@ type BrowseParams = {
   employees: string;
   salesFrom: string;
   query: string;
+  indexedOnly?: boolean;
 };
 
 type BrowseCompanyItem = {
@@ -44,6 +45,8 @@ type BrowseCompanyItem = {
   sales: string;
   creation_date: string;
   source_url: string;
+  last_checked_at: string | null;
+  risk_score: string;
 };
 
 type BrowseResult = {
@@ -173,7 +176,7 @@ export class CompaniesService {
     const page = Math.max(1, Math.min(5000, Math.floor(Number(params.page) || 1)));
     const query = this.normalizeSearchText(params.query).slice(0, 120);
     // Only identity fields are indexed from search. They are not a verified risk assessment.
-    if (query.length >= 2 && page === 1) {
+    if (!params.indexedOnly && query.length >= 2 && page === 1) {
       const matches = await this.search(query, 1);
       if (matches.length) {
         const { data: inserted, error } = await this.supabase.db.from('companies').upsert(matches.map(row => ({

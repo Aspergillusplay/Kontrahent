@@ -87,6 +87,7 @@ export const api = {
       employees?: string;
       salesFrom?: string;
       q?: string;
+      indexedOnly?: boolean;
     }, signal?: AbortSignal) => {
       const searchParams = new URLSearchParams();
       if (params.page && params.page > 1) searchParams.set('page', String(params.page));
@@ -97,6 +98,7 @@ export const api = {
       if (params.employees) searchParams.set('employees', params.employees);
       if (params.salesFrom) searchParams.set('salesFrom', params.salesFrom);
       if (params.q) searchParams.set('q', params.q);
+      if (params.indexedOnly) searchParams.set('indexedOnly', 'true');
       return apiFetch<any>(`/companies/browse?${searchParams.toString()}`, { signal });
     },
     get: (ico: string, signal?: AbortSignal) => apiFetch<CompanyDetails>(`/companies/${ico}`, { signal }),
