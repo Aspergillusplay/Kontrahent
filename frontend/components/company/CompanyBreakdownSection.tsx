@@ -168,18 +168,19 @@ type CompanyBreakdownSectionProps = {
 export default function CompanyBreakdownSection({ company }: CompanyBreakdownSectionProps) {
   const { t } = useI18n();
 
+  if (!company.breakdown?.assets?.length && !company.breakdown?.liabilities?.length) return null;
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-      <BreakdownCard
+      {!!company.breakdown?.assets?.length && <BreakdownCard
         title={t('company.assetStructure')}
         iconColorClass="text-blue-400"
         items={company.breakdown?.assets || []}
-      />
-      <BreakdownCard
+      />}
+      {!!company.breakdown?.liabilities?.length && <BreakdownCard
         title={t('company.liabilityStructure')}
         iconColorClass="text-purple-400"
         items={company.breakdown?.liabilities || []}
-      />
+      />}
     </div>
   );
 }

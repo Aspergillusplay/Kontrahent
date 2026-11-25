@@ -1,4 +1,4 @@
-export type RiskScore = 'green' | 'yellow' | 'red' | 'unknown';
+export type RiskScore = 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
 
 export type CompanyChartPoint = {
   year: string;
@@ -75,9 +75,11 @@ export type CompanyDetails = {
   equity?: number;
   negative_equity?: boolean;
   assets?: number;
+  registry_unit_id?: number;
+  filing?: { year?: string; state: 'documents' | 'private' | 'no_public_filing' | 'registered'; attachments: {id: number; name: string}[] };
   financial_year?: string;
   net_margin?: number;
-  data_quality?: { version?: number; stale?: boolean; identity?: {status: string; checked_at?: string}; financials?: {status: string; checked_at?: string}; debts?: Record<string, {status: string; checked_at?: string}> };
+  data_quality?: { version?: number; stale?: boolean; identity?: {status: string; checked_at?: string}; legal_status?: {status: string; checked_at?: string}; financials?: {status: string; checked_at?: string}; debts?: Record<string, {status: string; checked_at?: string}> };
   dlhy_nedoplatky?: boolean;
   pohladavky_statu?: boolean;
   has_docasna_ochrana?: boolean;

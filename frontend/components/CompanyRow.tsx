@@ -13,7 +13,7 @@ interface Props {
     companies: {
       name: string;
       city?: string;
-      risk_score: 'green' | 'yellow' | 'red' | 'unknown';
+      risk_score: 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
       risk_score_numeric?: number;
       risk_reasons?: string[];
       tax_debt?: number;

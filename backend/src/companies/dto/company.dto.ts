@@ -32,7 +32,7 @@ export interface CompanyRiskData {
   court_cases: number;
   is_bankrupt: boolean;
   is_in_liquidation: boolean;
-  risk_score: 'green' | 'yellow' | 'red' | 'unknown';
+  risk_score: 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
   risk_score_numeric: number;
   risk_reasons: string[];
   last_checked_at: string;
@@ -44,6 +44,8 @@ export interface CompanyRiskData {
   equity?: number;
   negative_equity?: boolean;
   assets?: number;
+  registry_unit_id?: number;
+  filing?: { year?: string; state: 'documents' | 'private' | 'no_public_filing' | 'registered'; attachments: {id: number; name: string}[] };
   financial_year?: string;
   net_margin?: number;
   data_quality?: { version?: number; stale?: boolean; identity?: {status: string; checked_at?: string}; financials?: {status: string; checked_at?: string}; debts?: Record<string, {status: string; checked_at?: string}> };

@@ -1,7 +1,7 @@
 import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import { useI18n } from '../lib/i18n/provider';
 
-type RiskScore = 'green' | 'yellow' | 'red' | 'unknown';
+import type { RiskScore } from '../lib/company-types';
 
 interface Props {
   score: RiskScore;
@@ -11,6 +11,7 @@ interface Props {
 }
 
 const config = {
+  partial: { labelKey: 'risk.partial', icon: ShieldCheck, classes: 'text-blue-300 bg-blue-500/10 border-blue-500/30', dot: 'bg-blue-500', scoreColor: 'text-blue-300' },
   unknown: { labelKey: 'risk.unknown', icon: ShieldAlert, classes: 'text-slate-300 bg-slate-500/10 border-slate-500/30', dot: 'bg-slate-500', scoreColor: 'text-slate-300' },
   green: {
     labelKey: 'risk.safe',

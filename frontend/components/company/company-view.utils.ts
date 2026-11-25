@@ -29,6 +29,7 @@ export function resolveDebtSummary(company: CompanyDetails): CompanyDebtSummary 
 
 export function resolveRiskContainerClass(score: CompanyDetails['risk_score']): string {
   const scoreClassByRisk: Record<CompanyDetails['risk_score'], string> = {
+    partial: 'border-blue-500/30 bg-blue-500/5',
     unknown: 'border-slate-700 bg-slate-900',
     green: 'border-green-500/30 bg-green-500/5',
     yellow: 'border-yellow-500/30 bg-yellow-500/5',

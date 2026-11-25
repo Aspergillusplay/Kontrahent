@@ -39,6 +39,11 @@ begin
   browse:=public.browse_company_cache('__integrity_fixture__',1,'sales-desc','','','');
   if (browse->>'total')::int<>1 or jsonb_array_length(browse->'companies')<>1 then raise exception 'Filtered total disagrees with results'; end if;
   if (public.browse_company_cache('__integrity_fixture__',1,'name','nonexistent region','','')->>'total')::int<>0 then raise exception 'Filter applied after pagination'; end if;
+  snapshot:=snapshot||jsonb_build_object('risk_score','partial','last_checked_at',old_stamp+interval '4 minutes');
+  perform public.save_company_snapshot(snapshot);
+  if exists(select 1 from public.company_history where ico=company_ico and field_name='risk_score') then raise exception 'Coverage change generated a risk alert'; end if;
+  if public.browse_company_cache('__integrity_fixture__',1,'name','','','')#>>'{companies,0,risk_score}' <> 'partial' then raise exception 'Directory assessment missing'; end if;
+  if has_function_privilege('authenticated','public.claim_directory_check()','EXECUTE') then raise exception 'Directory queue is public'; end if;
   insert into public.debt_snapshot_rows(source,snapshot_id,ico,amount) values('social',snap_a,company_ico,500);
   perform public.publish_debt_snapshot('social',snap_a,1,now()+interval '1 minute');
   begin
