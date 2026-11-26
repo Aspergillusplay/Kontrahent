@@ -26,15 +26,3 @@ export function resolveDebtSummary(company: CompanyDetails): CompanyDebtSummary 
   const tax = value('tax'), social = value('social'), health = value('health');
   return { tax, social, health, total: tax + social + health, sources_count: [tax, social, health].filter(n => n > 0).length };
 }
-
-export function resolveRiskContainerClass(score: CompanyDetails['risk_score']): string {
-  const scoreClassByRisk: Record<CompanyDetails['risk_score'], string> = {
-    partial: 'border-blue-500/30 bg-blue-500/5',
-    unknown: 'border-slate-700 bg-slate-900',
-    green: 'border-green-500/30 bg-green-500/5',
-    yellow: 'border-yellow-500/30 bg-yellow-500/5',
-    red: 'border-red-500/30 bg-red-500/5',
-  };
-
-  return scoreClassByRisk[score] || '';
-}

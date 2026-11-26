@@ -143,22 +143,13 @@ export function DashboardSummarySection({
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {[
-          { label: t('assessment.closed'), count: counts.closed, color: 'text-slate-300', bg: 'border-slate-700' },
-          { label: t('dashboard.critical'), count: counts.red, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
-          {
-            label: t('dashboard.warnings'),
-            count: counts.yellow,
-            color: 'text-yellow-400',
-            bg: 'bg-yellow-400/10 border-yellow-400/20',
-          },
-          { label: t('assessment.favourable'), count: counts.favourable, color: 'text-teal-300', bg: 'border-teal-500/30' },
-          { label: t('dashboard.healthy'), count: counts.green, color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/20' },
-          { label: t('assessment.incomplete'), count: counts.limited, color: 'text-slate-300', bg: 'border-slate-700' },
-          { label: t('risk.unknown'), count: counts.unknown, color: 'text-slate-300', bg: 'border-slate-700' },
-        ].filter(s => s.count > 0).map(s => (
-          <div key={s.label} className={`rounded-xl border p-3 ${s.bg}`}>
-            <div className={`text-2xl font-bold ${s.color}`}>{s.count}</div>
-            <div className={`text-xs ${s.color} opacity-70 mt-0.5`}>{s.label}</div>
+          ['red', 'risk.critical'], ['closed', 'assessment.closed'], ['yellow', 'risk.warning'],
+          ['favourable', 'assessment.favourable'], ['green', 'risk.safe'],
+          ['limited', 'assessment.incomplete'], ['unknown', 'risk.unknown'],
+        ].map(([group, label]) => counts[group] > 0 && (
+          <div key={group} data-assessment={group} className="assessment-total">
+            <div className="text-2xl font-bold text-slate-100">{counts[group]}</div>
+            <div className="mt-0.5 text-xs font-medium text-slate-300">{t(label)}</div>
           </div>
         ))}
       </div>

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import CompanyAssessment from './CompanyAssessment';
 import { CompanyDetails } from '../../lib/company-types';
-import { resolveRiskContainerClass } from './company-view.utils';
+import { assessmentGroup } from '../../lib/company-assessment';
 import { useI18n } from '../../lib/i18n/provider';
 import { toDateFnsLocale } from '../../lib/i18n/formatters';
 
@@ -37,7 +37,6 @@ export default function CompanyHeader({
   onAddToWatchlist,
 }: CompanyHeaderProps) {
   const { t, locale } = useI18n();
-  const riskClass = resolveRiskContainerClass(company.risk_score);
 
   return (
     <>
@@ -54,11 +53,11 @@ export default function CompanyHeader({
         </div>
       )}
 
-      <div className={`card border ${riskClass} mb-8`}>
-        <div className="flex items-start justify-between gap-6 flex-wrap">
+      <div data-assessment={assessmentGroup(company)} className="assessment-card mb-8">
+        <CompanyAssessment company={company} band />
+        <div className="flex items-start justify-between gap-6 flex-wrap p-4 sm:p-6">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-3 flex-wrap">
-              <CompanyAssessment company={company} />
               <span className="text-xs text-slate-500 font-mono bg-slate-800 px-2 py-1 rounded">ICO: {company.ico}</span>
               {company.important_dates?.bankruptcy && (
                 <span className="text-xs font-bold bg-red-500/20 text-red-400 px-2 py-1 rounded flex items-center gap-1">
