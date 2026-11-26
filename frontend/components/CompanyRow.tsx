@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Trash2, MapPin, Clock, ChevronRight } from 'lucide-react';
 import RiskBadge from './RiskBadge';
+import ScreeningSummary, { type ScreeningCompany } from './company/ScreeningSummary';
 import { formatDistanceToNow } from 'date-fns';
 import { useI18n } from '../lib/i18n/provider';
 import { formatCurrencyValue, toDateFnsLocale } from '../lib/i18n/formatters';
@@ -10,7 +11,7 @@ interface Props {
   item: {
     ico: string;
     alias?: string;
-    companies: {
+    companies: ScreeningCompany & {
       name: string;
       city?: string;
       risk_score: 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
@@ -109,6 +110,7 @@ export default function CompanyRow({ item, onRemove }: Props) {
           )}
         </div>
 
+        <ScreeningSummary company={c} />
         <div className="mt-2 flex items-center sm:hidden">
           <RiskBadge score={c.risk_score} numericScore={c.risk_score_numeric} size="sm" />
         </div>

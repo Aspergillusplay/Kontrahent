@@ -176,3 +176,50 @@ test('a search-only row cannot be returned as a completed check during an outage
   c.fetchFromRpo=async()=>({}); c.fetchFromRuz=async()=>({}); c.resolveDebtSnapshot=async()=>({});
   await assert.rejects(c.getCompany(seed.ico), /could not be verified/);
 });
+
+test('a sparse micro-entity income statement must reconcile before displaying sales', () => {
+  const labels = ['Výnosy z hospodárskej činnosti spolu', 'Tržby z predaja tovaru',
+    'Tržby z predaja vlastných výrobkov a služieb', 'Zmena stavu zásob', 'Aktivácia', 'Predaj majetku', 'Ostatné výnosy'];
+  const values = [880, null, 800, -20, null, null, 100];
+  const rows = labels.map((label,i) => ({label, values:[values[i], 0], tableName:'Zisky a straty', templateId:687, lineNo:i+1}));
+  assert.equal(extractFinancials(rows).revenue,800);
+  assert.equal(extractFinancials(rows.slice(0,-1)).revenue,undefined);
+  rows[1].invalidCurrent=true;
+  assert.equal(extractFinancials(rows).revenue,undefined);
+  delete rows[1].invalidCurrent;
+  rows[0].values[0]++;
+  assert.equal(extractFinancials(rows).revenue,undefined);
+});
+
+test('reviewed figures require the same company, period, public document and SHA-256', async () => {
+  const c=service();
+  const statement={id:6876580,obdobieDo:'2025-12',idUctovnychVykazov:[8]};
+  const file={id:12681005,mimeType:'application/pdf',digest:'271f2dd4cc5f14b310424de4ee2c9fa6d4e442c49749cc48a3f9732a30bf06e4'};
+  const report={idUctovnejZavierky:statement.id,prilohy:[file]};
+  c.fetchRuzReport=async()=>report;
+  const read=async(ico='35763469')=>(await c.fetchRuzStatementFinancial(statement,ico)).financials;
+  assert.equal((await read()).revenue,864525000);
+  assert.deepEqual((await read()).document_source,{attachment_id:12681005,pages:[5,7]});
+  assert.equal((await read('12345678')).revenue,undefined);
+  statement.obdobieDo='2026-12';
+  assert.equal((await read()).revenue,undefined);
+  statement.obdobieDo='2025-12';
+  report.pristupnostDat='Neverejné';
+  assert.equal((await read()).revenue,undefined);
+  delete report.pristupnostDat;
+  file.digest='replacement';
+  assert.equal((await read()).revenue,undefined);
+});
+
+test('watchlist indicators distinguish a loss, zero equity, missing coverage and an older filing', () => {
+  const {screenCompany}=require('../dist/companies/utils/screening');
+  const now=new Date('2026-11-26T12:00:00Z');
+  const source={status:'verified',checked_at:'2026-11-25T12:00:00Z'};
+  const quality={version:2,identity:source,financials:source,debts:{social:source}};
+  const account={financial_year:'2025',profit:-25,equity:0};
+  assert.deepEqual(screenCompany(quality,account,0,now),{nonnegative_profit:false,positive_equity:false,no_social_arrears:true});
+  assert.equal(screenCompany(quality,{...account,profit:0},25,now).nonnegative_profit,true);
+  assert.deepEqual(screenCompany(quality,{...account,financial_year:'2020'},null,now),{nonnegative_profit:null,positive_equity:null,no_social_arrears:null});
+  quality.debts.social={status:'stale',checked_at:source.checked_at};
+  assert.equal(screenCompany(quality,account,0,now).no_social_arrears,null);
+});

@@ -1,4 +1,4 @@
-type Row = { label: string; tableName: string; values: number[] };
+type Row = { label: string; tableName: string; values: number[]; lineNo?: number; templateId?: number; invalidCurrent?: boolean };
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 export const currentValue = (row: Row): number | undefined => {
   // Standard RUZ assets: gross, adjustment, current net, prior net.
@@ -8,6 +8,24 @@ export const currentValue = (row: Row): number | undefined => {
   return Number.isFinite(value) ? value : undefined;
 };
 const current = currentValue;
+// Some statutory forms leave unused sales lines blank. Accept the reported
+// sales components only when all rows exist and reconcile to operating income.
+function reconciledSales(rows: Row[]): number | undefined {
+  const total = rows.find(row => norm(row.label).startsWith('vynosy z hospodarskej cinnosti spolu') &&
+    ((row.templateId === 687 && row.lineNo === 1) || (row.templateId === 699 && row.lineNo === 2)));
+  if (!total || current(total) === undefined) return undefined;
+  const micro = total.templateId === 687;
+  const last = micro ? 7 : 9;
+  const lastSale = micro ? 3 : 5;
+  const parts = rows.filter(row => row.templateId === total.templateId && row.tableName === total.tableName &&
+    row.lineNo > total.lineNo && row.lineNo <= last);
+  if (parts.length !== last - total.lineNo || new Set(parts.map(row => row.lineNo)).size !== parts.length ||
+      parts.some(row => row.values.length !== 2 || row.invalidCurrent)) return undefined;
+  const sales = parts.filter(row => row.lineNo <= lastSale);
+  const sum = (items: Row[]) => items.reduce((value, row) => value + (current(row) ?? 0), 0);
+  if (!sales.some(row => current(row) !== undefined) || sum(parts) !== current(total)) return undefined;
+  return sum(sales);
+}
 export function extractFinancials(rows: Row[]): Record<string, any> {
   const find = (patterns: RegExp[]) => {
     for (const pattern of patterns) {
@@ -26,6 +44,7 @@ export function extractFinancials(rows: Row[]): Record<string, any> {
     const components = [find([/^trzby (z predaja|za predaj) tovaru\b/]), find([/^trzby (z predaja|za predaj) vlastnych vyrobkov\b/]), find([/^trzby (z predaja|za predaj) sluzieb\b/])];
     if (components.every(v => v !== undefined)) revenue = components.reduce((a, b) => a + b, 0);
   }
+  revenue ??= reconciledSales(rows);
   const profit = find([/^vysledok hospodarenia za uctovne obdobie po zdaneni\b/, /^vysledok hospodarenia po zdaneni\b/]);
   const assets = find([/^spolu majetok\b/, /^majetok spolu\b/, /^aktiva spolu\b/]);
   const equity = find([/^vlastne imanie\b(?! a zavazky)/, /^vlastne zdroje krytia\b/]);

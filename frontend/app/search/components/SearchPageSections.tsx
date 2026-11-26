@@ -16,11 +16,14 @@ import {
   X,
 } from 'lucide-react';
 import AppHeader from '../../../components/AppHeader';
+import type { Screening } from '../../../lib/company-types';
 
-function directoryAssessment(company: {last_checked_at?: string; risk_score?: string}, t: TranslateFn) {
+function directoryAssessment(company: {last_checked_at?: string; risk_score?: string; screening?: Screening}, t: TranslateFn) {
   if (!company.last_checked_at) return t('company.queued');
   const labels: Record<string,string> = {partial:'risk.partial', red:'risk.critical', yellow:'risk.warning', green:'risk.safe'};
-  return t(labels[company.risk_score || ''] || 'risk.unknown');
+  const label = t(labels[company.risk_score || ''] || 'risk.unknown');
+  const checks = Object.values(company.screening || {}).filter(value => typeof value === 'boolean');
+  return checks.length ? label + ' · ' + t('company.screeningResult', {passed: checks.filter(Boolean).length, checked: checks.length}) : label;
 }
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;

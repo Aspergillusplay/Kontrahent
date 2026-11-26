@@ -1,11 +1,11 @@
 # Data sources and integrity
 
-Last verified: 2026-10-14. Coverage is also explained to users at `/about-data`.
+Last verified: 2026-11-26. Coverage is also explained to users at `/about-data`.
 
 | Source | Use | Limitations |
 | --- | --- | --- |
-| [RPO](https://api.statistics.sk/rpo/v1) | Name search, exact IČO identity/status | May time out; cached name matches remain available. |
-| [RUZ](https://www.registeruz.sk/cruz-public/home/api) | Exact IČO lookup, accounting statements and code lists | No global name search; some reports are PDF-only or use unsupported templates. |
+| [RPO](https://api.statistics.sk/rpo/v1) | Name search, exact IČO identity/status | If RPO name search fails, first-page searches of at least three characters also use the public RÚZ name suggestions. |
+| [RUZ](https://www.registeruz.sk/cruz-public/home/api) | Exact IČO lookup, accounting statements and code lists | RÚZ offers public name suggestions. Some filings contain only attachments or are nonpublic. |
 | [Sociálna poisťovňa](https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov) | Published social-insurance debt snapshot | Publication delays and thresholds apply. Absence is not a certificate of no debt. |
 | [Financial Administration](https://report.financnasprava.sk/ds_dsdd.zip) | Tax-debt ingestion when exact IČO is present | Inspected export lacks IČO. Tax debt is unavailable; names/addresses are never used to assign debt. |
 | Health insurance, VAT, courts | No verified connector | Shown as unavailable, never as zero, false or a low-risk verdict. |
@@ -17,6 +17,10 @@ Directory filters and sorting run in PostgreSQL before pagination. The total cov
 Checks share one in-flight request per IČO, allow at most four concurrent refreshes and bound external calls. A verified cache is reused for 24 hours. If both identity sources fail, the previous record remains visibly stale without advancing its timestamp. Legacy scraped financial and debt values are not exposed as verified data.
 
 RUZ reports are selected by accounting period, excluding consolidated reports and superseded filings for the same year. Supported templates use the current net column, preserve zero/negative values, and use total revenue or all required components. Pie charts require top-level components to reconcile with the total. Company pages display the actual financial year.
+
+The watchlist and company pages show how many available indicators pass: a nonnegative annual result, positive equity and no published social-insurance arrears. The financial period must be within the current or preceding two calendar years, and the underlying checks must be less than seven days old. Missing indicators stay out of the denominator. This count is separate from the registry risk category.
+
+For selected PDF or ZIP filings, current-period figures have been reviewed against the individual statement. Transcriptions are bound to the IČO, period, statement ID, attachment ID and published SHA-256. The card links the document and pages. New document versions need their own verification. Standard forms 687 and 699 also support sparse sales lines when the published operating subtotal reconciles with its components.
 
 ## Atomic persistence
 
