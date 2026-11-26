@@ -4,6 +4,7 @@
 
 :root {
   --font-inter: 'Inter Variable';
+  --language-clearance: calc(4.25rem + env(safe-area-inset-bottom, 0px));
   --font-mono: 'JetBrains Mono Variable';
   --risk-green: #22c55e;
   --risk-yellow: #eab308;
@@ -49,7 +50,9 @@
   html {
     background: rgb(var(--slate-950));
     color: rgb(var(--slate-100));
+    scroll-padding-bottom: var(--language-clearance);
   }
+  body { padding-bottom: var(--language-clearance); }
 
   :focus-visible { outline: 2px solid #6366f1; outline-offset: 3px; }
   button:disabled { cursor: not-allowed; opacity: .55; }
@@ -64,6 +67,17 @@
 }
 
 @layer components {
+  .language-dock {
+    @apply fixed z-40 flex justify-end;
+    right: max(.75rem, env(safe-area-inset-right, 0px));
+    bottom: calc(.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  @media (max-width: 639px) {
+    .language-dock {
+      @apply inset-x-0 bottom-0 border-t border-slate-800 bg-slate-950;
+      padding: .25rem max(.75rem, env(safe-area-inset-right, 0px)) calc(.25rem + env(safe-area-inset-bottom, 0px)) .75rem;
+    }
+  }
   [data-assessment] { --status-fill: #536174; --status-edge: #94a3b8; --status-ink: #fff; }
   [data-assessment='red'] { --status-fill: #ab3041; --status-edge: #fa6679; }
   [data-assessment='yellow'] { --status-fill: #f2bc56; --status-edge: #e6a52b; --status-ink: #30200a; }
