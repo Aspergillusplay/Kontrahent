@@ -176,7 +176,13 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
         {company.registry_unit_id && <a className="inline-block text-sm underline" target="_blank" rel="noreferrer"
           href={'https://www.registeruz.sk/cruz-public/domain/accountingentity/show/' + company.registry_unit_id}>{t('company.openRuz')}</a>}
       </section>}
-      {metrics.some(metric => metric.value !== '—') && company.financial_year && <h3 className="text-sm font-semibold">{t('company.financialYear', {value: company.financial_year})}</h3>}
+      {metrics.some(metric => metric.value !== '—') && company.financial_year && <div className="space-y-1">
+        <h3 className="text-sm font-semibold">{t('company.financialYear', {value: company.financial_year})}</h3>
+        {company.financial_document && <a className="text-xs text-brand-400 underline" target="_blank" rel="noreferrer"
+          href={'https://www.registeruz.sk/cruz-public/domain/financialreport/attachment/' + company.financial_document.attachment_id}>
+          {t('company.financialSource', {pages: company.financial_document.pages.join(', ')})}
+        </a>}
+      </div>}
       {metrics.some(metric => metric.value !== '—') && <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {metrics.filter(metric => metric.value !== '—').map((metric) => (
           <div key={metric.label} className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">

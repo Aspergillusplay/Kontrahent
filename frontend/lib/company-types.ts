@@ -1,5 +1,7 @@
 export type RiskScore = 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
 
+export type Screening = {nonnegative_profit: boolean | null; positive_equity: boolean | null; no_social_arrears: boolean | null};
+
 export type CompanyChartPoint = {
   year: string;
   value: number;
@@ -66,6 +68,7 @@ export type CompanyDetails = {
   is_in_liquidation: boolean;
   risk_score: RiskScore;
   risk_score_numeric: number;
+  screening?: Screening;
   risk_reasons: string[];
   last_checked_at: string;
   revenue?: number;
@@ -78,6 +81,7 @@ export type CompanyDetails = {
   registry_unit_id?: number;
   filing?: { year?: string; state: 'documents' | 'private' | 'no_public_filing' | 'registered'; attachments: {id: number; name: string}[] };
   financial_year?: string;
+  financial_document?: { attachment_id: number; pages: number[] };
   net_margin?: number;
   data_quality?: { version?: number; stale?: boolean; identity?: {status: string; checked_at?: string}; legal_status?: {status: string; checked_at?: string}; financials?: {status: string; checked_at?: string}; debts?: Record<string, {status: string; checked_at?: string}> };
   dlhy_nedoplatky?: boolean;

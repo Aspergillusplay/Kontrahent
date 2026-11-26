@@ -12,6 +12,8 @@ import {
 
 import { mapLimit } from '../common/concurrency';
 import { extractFinancials, extractBreakdown } from './utils/financials';
+import { reviewedFigures } from './utils/reviewed-filings';
+import { screenCompany } from './utils/screening';
 
 type DebtSnapshot = {
   tax: number;
@@ -67,6 +69,7 @@ type CompanySearchResult = {
 };
 
 type RuzMappedRow = {
+  invalidCurrent?: boolean;
   tableName: string;
   lineNo: number;
   label: string;
@@ -150,7 +153,10 @@ export class CompaniesService {
       return [{ ico: company.ico, name: company.name, address: company.address || '', city: company.city || '', source: 'direct', risk_score: company.risk_score }];
     }
     const [remote, local] = await Promise.allSettled([
-      this.searchViaRpo(q, safePage, limit), this.searchLocalCompanies(q, offset, limit),
+      this.searchViaRpo(q, safePage, limit).catch(error => {
+        if (safePage !== 1 || q.length < 3) throw error;
+        return this.searchRuzNames(q, limit);
+      }), this.searchLocalCompanies(q, offset, limit),
     ]);
     const rpoMatches = remote.status === 'fulfilled' ? remote.value : [];
     const localMatches = local.status === 'fulfilled' ? local.value : [];
@@ -194,8 +200,18 @@ export class CompaniesService {
       p_region: params.region, p_legal_form: params.legalForm, p_employees: params.employees,
     });
     if (error) throw new ServiceUnavailableException('Company directory is unavailable');
-    const [regions,sizes]=await Promise.all([this.getRuzRegionsMap(),this.getRuzOrgSizesMap()]);
-    return { ...data, companies: data.companies.map(row => ({...row, region: regions.get(row.region) || row.region,
+    const ids = data.companies.map(row => row.ico);
+    if (!ids.length) return data;
+    const [regions, sizes, evidence] = await Promise.all([
+      this.getRuzRegionsMap(), this.getRuzOrgSizesMap(),
+      this.supabase.db.from('companies').select('ico,social_debt,quality:raw_data->data_quality,financials:raw_data->financials').in('ico', ids),
+    ]);
+    if (evidence.error) this.logger.warn('Directory indicator summary is temporarily unavailable');
+    const screenings = new Map((evidence.data || []).map(row => [row.ico, screenCompany(
+      row.quality as Parameters<typeof screenCompany>[0],
+      (row.financials || {}) as Parameters<typeof screenCompany>[1], parseNumber(row.social_debt),
+    )]));
+    return { ...data, companies: data.companies.map(row => ({...row, screening: screenings.get(row.ico), region: regions.get(row.region) || row.region,
       employees: sizes.get(row.employees) || row.employees})) };
   }
 
@@ -323,6 +339,19 @@ export class CompaniesService {
       risk_score: this.formatCompany(record).risk_score,
       source: 'local' as const,
     }));
+  }
+
+  private async searchRuzNames(query: string, limit: number): Promise<CompanySearchResult[]> {
+    const { data } = await axios.get('https://www.registeruz.sk/cruz-public/domain/suggestion/search', {
+      params: {query}, headers: this.requestHeaders, timeout: 5000, maxContentLength: 128 * 1024,
+    });
+    if (!Array.isArray(data)) throw new Error('Accounting register search is unavailable');
+    return data.slice(0, limit).flatMap(item => {
+      const ico = normalizeIco(item?.entNumber);
+      const name = this.normalizeSearchText(String(item?.entityName || '').replace(/<\/?b>/gi, '')
+        .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+      return ico && name && !/[<>]/.test(name) ? [{ico, name, city: '', address: '', source: 'ruz' as const}] : [];
+    });
   }
 
   private async searchViaRpo(query: string, page: number, limit: number): Promise<CompanySearchResult[]> {
@@ -508,10 +537,11 @@ export class CompaniesService {
         ? unit.idUctovnychZavierok.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id))
         : [];
 
-      const rankedStatements = await this.fetchRuzStatementsForFinancials(statementIds, 8);
+      const rankedStatements = (await this.fetchRuzStatementsForFinancials(statementIds, 8))
+        .filter(statement => statement.idUJ === unit.id);
       const reports = [];
       for (const statement of rankedStatements.slice(0, 5)) {
-        reports.push(await this.fetchRuzStatementFinancial(statement));
+        reports.push(await this.fetchRuzStatementFinancial(statement, ico));
       }
       const latestStatement = rankedStatements[0];
       const latestFiling = reports[0];
@@ -815,13 +845,14 @@ export class CompaniesService {
     );
   }
 
-  private async fetchRuzStatementFinancial(statement: any): Promise<RuzStatementFinancial> {
+  private async fetchRuzStatementFinancial(statement: any, ico?: string): Promise<RuzStatementFinancial> {
     const reportIds: number[] = Array.isArray(statement?.idUctovnychVykazov)
       ? statement.idUctovnychVykazov.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id))
       : [];
 
     const mappedRows: RuzMappedRow[] = [];
     const attachments = new Map<string, { id: number; name: string }>();
+    let reviewed: ReturnType<typeof reviewedFigures>;
     let privateReports = 0;
     for (const reportId of reportIds) {
       const report = await this.fetchRuzReport(reportId);
@@ -834,6 +865,7 @@ export class CompaniesService {
         if (!Number.isSafeInteger(file.id) || file.id <= 0 || !['application/pdf', 'application/zip', 'application/x-zip-compressed'].includes(file.mimeType)) continue;
         const key = file.digest || String(file.id);
         if (!attachments.has(key)) attachments.set(key, { id: file.id, name: String(file.meno || file.mimeType) });
+        reviewed ??= reviewedFigures(ico, statement, file);
       }
       if (!Array.isArray(report?.obsah?.tabulky) || report.obsah.tabulky.length === 0) continue;
       const templateId = Number(report.idSablony);
@@ -842,6 +874,12 @@ export class CompaniesService {
     }
 
     const financials = this.extractFinancialsFromMappedRows(mappedRows);
+    if (reviewed && !this.hasFinancialMetrics(financials)) {
+      Object.assign(financials, reviewed.figures, { document_source: reviewed.source });
+      if (financials.revenue > 0 && Number.isFinite(financials.profit)) {
+        financials.net_margin = financials.profit / financials.revenue * 100;
+      }
+    }
     if (statement?.obdobieDo) {
       const year = String(statement.obdobieDo).match(/^\d{4}/)?.[0];
       if (year) financials.financial_year = year;
@@ -921,6 +959,7 @@ export class CompaniesService {
         const label = this.normalizeSearchText(rowMeta?.text?.sk || rowMeta?.text?.en || '');
         const lineNo = this.toNumber(rowMeta?.cisloRiadku || rowIndex + 1);
         out.push({
+          ...(values[0] === undefined && String(rawValues[0] ?? '').trim() ? {invalidCurrent: true} : {}),
           tableName: this.normalizeSearchText(table?.nazov?.sk || table?.nazov?.en || ''),
           lineNo,
           label,
@@ -1151,6 +1190,7 @@ export class CompaniesService {
       registry_unit_id: valid && Number.isSafeInteger(d.ruz?.unit?.id) ? d.ruz.unit.id : undefined,
       data_quality: d.data_quality || { version: 0, stale: true },
       risk_score: risk.risk_score,
+      screening: screenCompany(d.data_quality, f, parseNumber(row.social_debt)),
       risk_score_numeric: risk.risk_score_numeric,
       risk_reasons: risk.risk_reasons,
       tax_debt: debtSummary.tax,
@@ -1165,6 +1205,7 @@ export class CompaniesService {
       equity: f.equity,
       assets: f.assets,
       financial_year: f.financial_year,
+      financial_document: f.document_source,
       debt_ratio: f.debt_ratio,
       net_margin: f.net_margin,
       is_loss: f.profit === undefined ? undefined : f.profit < 0,

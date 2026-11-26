@@ -34,6 +34,7 @@ export interface CompanyRiskData {
   is_in_liquidation: boolean;
   risk_score: 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
   risk_score_numeric: number;
+  screening?: {nonnegative_profit: boolean | null; positive_equity: boolean | null; no_social_arrears: boolean | null};
   risk_reasons: string[];
   last_checked_at: string;
   // Financial data from official accounting statements (RUZ)
@@ -47,6 +48,7 @@ export interface CompanyRiskData {
   registry_unit_id?: number;
   filing?: { year?: string; state: 'documents' | 'private' | 'no_public_filing' | 'registered'; attachments: {id: number; name: string}[] };
   financial_year?: string;
+  financial_document?: { attachment_id: number; pages: number[] };
   net_margin?: number;
   data_quality?: { version?: number; stale?: boolean; identity?: {status: string; checked_at?: string}; financials?: {status: string; checked_at?: string}; debts?: Record<string, {status: string; checked_at?: string}> };
   // Debt/risk indicators
