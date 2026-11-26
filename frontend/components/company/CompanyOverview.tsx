@@ -170,15 +170,17 @@ export default function CompanyOverview({ company }: CompanyOverviewProps) {
 
       {company.filing && <section className="card space-y-2">
         <h3 className="font-semibold">{t('company.financialStatements')} {company.filing.year}</h3>
-        <p className="text-sm text-slate-400">{t('company.filing.' + company.filing.state)}</p>
+        {company.filing.state !== 'documents' && <p className="text-sm text-slate-400">{t('company.filing.' + company.filing.state)}</p>}
         {company.filing.attachments.map(file => <a key={file.id} className="block text-sm text-brand-400 underline" target="_blank" rel="noreferrer"
-          href={'https://www.registeruz.sk/cruz-public/domain/financialreport/attachment/' + file.id}>{file.name}</a>)}
+          href={'https://www.registeruz.sk/cruz-public/domain/financialreport/attachment/' + file.id}>
+          {file.name}{file.id === company.financial_document?.attachment_id && ' · ' + t('company.sourcePages', {pages: company.financial_document.pages.join(', ')})}
+        </a>)}
         {company.registry_unit_id && <a className="inline-block text-sm underline" target="_blank" rel="noreferrer"
           href={'https://www.registeruz.sk/cruz-public/domain/accountingentity/show/' + company.registry_unit_id}>{t('company.openRuz')}</a>}
       </section>}
       {metrics.some(metric => metric.value !== '—') && company.financial_year && <div className="space-y-1">
         <h3 className="text-sm font-semibold">{t('company.financialYear', {value: company.financial_year})}</h3>
-        {company.financial_document && <a className="text-xs text-brand-400 underline" target="_blank" rel="noreferrer"
+        {company.financial_document && !company.filing?.attachments.some(file => file.id === company.financial_document.attachment_id) && <a className="text-xs text-brand-400 underline" target="_blank" rel="noreferrer"
           href={'https://www.registeruz.sk/cruz-public/domain/financialreport/attachment/' + company.financial_document.attachment_id}>
           {t('company.financialSource', {pages: company.financial_document.pages.join(', ')})}
         </a>}

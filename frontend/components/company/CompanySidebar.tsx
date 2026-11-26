@@ -9,7 +9,6 @@ export default function CompanySidebar({company, debtSummary}: {company: Company
   const { t, locale } = useI18n();
   const events = [
     {label: t('company.bankruptcies'), value: company.events_detail?.bankruptcies},
-    {label: t('company.debtsClaims'), value: company.events_detail?.debts},
     {label: t('company.courtDecisions'), value: company.events_detail?.court_decisions},
     {label: t('company.paymentOrders'), value: company.events_detail?.payment_orders},
     {label: t('company.enforcements'), value: company.events_detail?.executions},
@@ -17,7 +16,7 @@ export default function CompanySidebar({company, debtSummary}: {company: Company
   const sources = (['social', 'tax', 'health'] as const).filter(source =>
     ['verified', 'stale'].includes(company.data_quality?.debts?.[source]?.status || ''));
   const dates = [
-    {label: t('company.latestOrsrEntry'), value: company.important_dates?.orsr_entry},
+    {label: t('company.latestOrsrEntry'), value: company.important_dates?.orsr_entry !== company.registration_date ? company.important_dates?.orsr_entry : undefined},
     {label: t('company.bankruptcyProceedings'), value: company.important_dates?.bankruptcy},
   ].filter(item => item.value);
   return <aside className="space-y-6">

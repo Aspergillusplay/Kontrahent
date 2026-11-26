@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Bell, Loader2, LogOut, Plus, RefreshCw, Search, Shield, Zap } from 'lucide-react';
 import CompanyRow from '../../../components/CompanyRow';
+import { assessmentGroup } from '../../../lib/company-assessment';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -37,17 +38,18 @@ export function DashboardHeaderCenterSearch({
   onSearchSubmit,
 }: DashboardHeaderCenterSearchProps) {
   return (
-    <form onSubmit={onSearchSubmit} className="w-full max-w-sm flex gap-2">
+    <form onSubmit={onSearchSubmit} className="w-full md:max-w-sm flex gap-2">
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input
           value={searchQuery}
+          aria-label={t('dashboard.searchPlaceholder')}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t('dashboard.searchPlaceholder')}
           className="input pl-9 py-2 text-sm"
         />
       </div>
-      <button type="submit" disabled={!searchQuery.trim()} className="btn-primary py-2 px-3 shrink-0 inline-flex items-center justify-center">
+      <button type="submit" aria-label={t('common.search')} disabled={!searchQuery.trim()} className="btn-primary py-2 px-3 shrink-0 inline-flex items-center justify-center">
         <Search className="w-4 h-4 sm:hidden" />
         <span className="hidden sm:inline">{t('common.search')}</span>
       </button>
@@ -114,13 +116,6 @@ type DashboardSummarySectionProps = {
   watchlist: any[];
   batchRefreshing: boolean;
   onRefreshAll: () => Promise<void>;
-  riskCounts: {
-    red: number;
-    yellow: number;
-    green: number;
-    unknown: number;
-    partial: number;
-  };
 };
 
 export function DashboardSummarySection({
@@ -128,9 +123,10 @@ export function DashboardSummarySection({
   watchlist,
   batchRefreshing,
   onRefreshAll,
-  riskCounts,
 }: DashboardSummarySectionProps) {
   if (watchlist.length === 0) return null;
+  const counts = {closed: 0, red: 0, yellow: 0, green: 0, favourable: 0, limited: 0, unknown: 0};
+  for (const item of watchlist) counts[assessmentGroup(item.companies || {})]++;
 
   return (
     <div className="mb-8">
@@ -145,20 +141,22 @@ export function DashboardSummarySection({
           {batchRefreshing ? t('dashboard.refreshing') : t('dashboard.refreshAll')}
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {[
-          { label: t('risk.partial'), count: riskCounts.partial, color: 'text-blue-300', bg: 'bg-blue-500/10 border-blue-500/20' },
-          { label: t('risk.unknown'), count: riskCounts.unknown, color: 'text-slate-300', bg: 'bg-slate-800/50 border-slate-700' },
-          { label: t('dashboard.critical'), count: riskCounts.red, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
+          { label: t('assessment.closed'), count: counts.closed, color: 'text-slate-300', bg: 'border-slate-700' },
+          { label: t('dashboard.critical'), count: counts.red, color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20' },
           {
             label: t('dashboard.warnings'),
-            count: riskCounts.yellow,
+            count: counts.yellow,
             color: 'text-yellow-400',
             bg: 'bg-yellow-400/10 border-yellow-400/20',
           },
-          { label: t('dashboard.healthy'), count: riskCounts.green, color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/20' },
-        ].map((s, i) => (
-          <div key={i} className={`rounded-xl border p-4 ${s.bg}`}>
+          { label: t('assessment.favourable'), count: counts.favourable, color: 'text-teal-300', bg: 'border-teal-500/30' },
+          { label: t('dashboard.healthy'), count: counts.green, color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/20' },
+          { label: t('assessment.incomplete'), count: counts.limited, color: 'text-slate-300', bg: 'border-slate-700' },
+          { label: t('risk.unknown'), count: counts.unknown, color: 'text-slate-300', bg: 'border-slate-700' },
+        ].filter(s => s.count > 0).map(s => (
+          <div key={s.label} className={`rounded-xl border p-3 ${s.bg}`}>
             <div className={`text-2xl font-bold ${s.color}`}>{s.count}</div>
             <div className={`text-xs ${s.color} opacity-70 mt-0.5`}>{s.label}</div>
           </div>
@@ -203,8 +201,8 @@ export function DashboardCompaniesList({ t, loading, watchlist, onRemove }: Dash
       <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('dashboard.companyList')}</h2>
       {[...watchlist]
         .sort((a, b) => {
-          const order = { red: 0, yellow: 1, green: 2 };
-          return (order[a.companies?.risk_score as 'red' | 'yellow' | 'green'] ?? 3) - (order[b.companies?.risk_score as 'red' | 'yellow' | 'green'] ?? 3);
+          const order = { red: 0, closed: 1, yellow: 2, unknown: 3, limited: 4, favourable: 5, green: 5 };
+          return order[assessmentGroup(a.companies || {})] - order[assessmentGroup(b.companies || {})];
         })
         .map((item) => (
           <CompanyRow

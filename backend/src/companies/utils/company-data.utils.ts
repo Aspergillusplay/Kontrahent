@@ -1,6 +1,24 @@
 import { BadRequestException } from '@nestjs/common';
 import { CompanyRiskData } from '../dto/company.dto';
 
+type AccountingUnit = {ico?: string; konsolidovana?: boolean; datumZrusenia?: string};
+
+export function selectAccountingUnit<T extends AccountingUnit>(ico: string, candidates: T[]) {
+  if (candidates.some(unit => !unit)) return undefined;
+  const exact = candidates.filter(unit => normalizeIco(unit.ico) === ico && unit.konsolidovana !== true);
+  if (exact.length === 1) return exact[0];
+  const current = exact.filter(unit => !unit.datumZrusenia);
+  return current.length === 1 ? current[0] : undefined;
+}
+
+export function registryTermination(ico: string, unit?: AccountingUnit, today = new Date()) {
+  const date = unit?.datumZrusenia;
+  if (!date || normalizeIco(unit.ico) !== ico || unit.konsolidovana === true ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today.toISOString().slice(0, 10)) return undefined;
+  const parsed = new Date(date);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date ? date : undefined;
+}
+
 type DebtSummary = NonNullable<CompanyRiskData['debt_summary']>;
 
 type TopLevelDebt = {

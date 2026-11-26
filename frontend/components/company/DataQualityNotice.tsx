@@ -1,16 +1,13 @@
 'use client';
 import { CompanyDetails } from '../../lib/company-types';
-import ScreeningSummary from './ScreeningSummary';
 import { useI18n } from '../../lib/i18n/provider';
 export default function DataQualityNotice({company}:{company:CompanyDetails}) {
   const {t}=useI18n();
   const quality=company.data_quality;
   return <section className="mb-6 rounded-xl border border-slate-700 bg-slate-900 p-4" aria-label={t('company.dataCoverage')}>
     <h2 className="font-semibold text-sm mb-2">{t('company.dataCoverage')}</h2>
-    <ScreeningSummary company={company} />
     {company.screening && <p className="my-2 text-xs text-slate-400">{t('company.screeningMethod')}</p>}
-    <p className="text-sm text-slate-400 leading-relaxed">{t(quality?.stale?'company.staleData':'company.partialData')}</p>
-    {company.risk_score === 'partial' && <p className="mt-2 text-sm">{t('company.partialResult')}</p>}
+    {quality?.stale && <p className="text-sm text-slate-400">{t('company.staleData')}</p>}
     <div className="flex flex-wrap gap-2 mt-3 text-xs">
       <span className="rounded-md bg-slate-800 px-2 py-1">{t('company.identity')}: {t('company.coverage.' + (quality?.identity?.status || 'unavailable'))}</span>
       {quality?.legal_status?.status === 'stale' && <span className="rounded-md bg-slate-800 px-2 py-1">

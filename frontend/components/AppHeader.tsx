@@ -63,7 +63,7 @@ export default function AppHeader({
 
   const containerClass = [
     `${maxWidthClassName} mx-auto flex items-center gap-3 md:gap-4`,
-    center ? 'md:flex-nowrap' : '',
+    center ? 'flex-wrap md:flex-nowrap' : '',
   ]
     .filter(Boolean)
     .join(' ');

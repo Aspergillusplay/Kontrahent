@@ -76,8 +76,6 @@ export default function DashboardPage() {
     const { error } = await getSupabase().auth.signOut();
     if (error) setError(error.message); else window.location.assign('/');
   }
-  const riskCounts = Object.fromEntries(['red', 'yellow', 'green', 'partial', 'unknown'].map(risk =>
-    [risk, watchlist.filter(w => (w.companies?.risk_score || 'unknown') === risk).length])) as Record<'red'|'yellow'|'green'|'partial'|'unknown', number>;
   return <div className="min-h-screen bg-slate-950">
     {isDemo && <DashboardDemoBanner t={t} />}
     <AppHeader maxWidthClassName="max-w-6xl" center={<DashboardHeaderCenterSearch t={t} searchQuery={searchQuery}
@@ -87,7 +85,7 @@ export default function DashboardPage() {
       <DashboardTitleSection t={t} />
       <RequestFeedback loading={loading || batchRefreshing} error={error} onRetry={() => setAttempt(a => a + 1)} />
       {!loading && <DashboardSummarySection t={t} watchlist={watchlist} batchRefreshing={batchRefreshing || isDemo}
-        onRefreshAll={handleRefreshAll} riskCounts={riskCounts} />}
+        onRefreshAll={handleRefreshAll} />}
       {(!error || watchlist.length > 0) && <DashboardCompaniesList t={t} loading={loading} watchlist={watchlist} onRemove={isDemo ? undefined : handleRemove} />}
     </main>
   </div>;

@@ -1,142 +1,68 @@
 'use client';
-import Link from 'next/link';
-import { Trash2, MapPin, Clock, ChevronRight } from 'lucide-react';
-import RiskBadge from './RiskBadge';
-import ScreeningSummary, { type ScreeningCompany } from './company/ScreeningSummary';
+
 import { formatDistanceToNow } from 'date-fns';
-import { useI18n } from '../lib/i18n/provider';
+import { Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { compactCompanyName } from '../lib/company-assessment';
+import type { CompanyDetails } from '../lib/company-types';
 import { formatCurrencyValue, toDateFnsLocale } from '../lib/i18n/formatters';
+import { useI18n } from '../lib/i18n/provider';
+import CompanyAssessment from './company/CompanyAssessment';
 
-interface Props {
-  item: {
-    ico: string;
-    alias?: string;
-    companies: ScreeningCompany & {
-      name: string;
-      city?: string;
-      risk_score: 'green' | 'yellow' | 'red' | 'partial' | 'unknown';
-      risk_score_numeric?: number;
-      risk_reasons?: string[];
-      tax_debt?: number;
-      social_debt?: number;
-      health_debt?: number;
-      court_cases?: number;
-      last_checked_at?: string;
-    };
-  };
+type Props = {
+  item: {ico: string; alias?: string; companies: CompanyDetails | null};
   onRemove?: () => void;
-}
+};
 
-export default function CompanyRow({ item, onRemove }: Props) {
-  const { locale, t } = useI18n();
-  const c = item.companies;
-  if (!c) return null;
+export default function CompanyRow({item, onRemove}: Props) {
+  const {locale, t} = useI18n();
+  const company = item.companies;
+  if (!company) return null;
+  const name = compactCompanyName(company.name);
+  const alias = item.alias?.trim();
+  const checked = Date.parse(company.last_checked_at);
+  const figures = (['revenue', 'profit', 'equity'] as const).filter(field => Number.isFinite(company[field]));
+  const debtSources = (['social', 'tax', 'health'] as const).filter(source => {
+    const status = company.data_quality?.debts?.[source]?.status;
+    return (status === 'verified' || status === 'stale') && Number.isFinite(company[`${source}_debt`]);
+  });
 
-  const hasDebt = Number(c.tax_debt || 0) + Number(c.social_debt || 0) + Number(c.health_debt || 0) > 0;
-  const totalDebt = Number(c.tax_debt || 0) + Number(c.social_debt || 0) + Number(c.health_debt || 0);
-  const lastChecked = c.last_checked_at && !isNaN(Date.parse(c.last_checked_at))
-    ? formatDistanceToNow(new Date(c.last_checked_at), { addSuffix: true, locale: toDateFnsLocale(locale) })
-    : null;
-
-  return (
-    <div className={`group flex items-start sm:items-center gap-3 sm:gap-4 bg-slate-900 border rounded-xl px-3 sm:px-4 py-3 sm:py-3.5 hover:border-slate-700 transition-all ${
-      c.risk_score === 'red'
-        ? 'border-red-500/30'
-        : c.risk_score === 'yellow'
-        ? 'border-yellow-500/20'
-        : 'border-slate-800'
-    }`}>
-      {/* Risk indicator bar */}
-      <div className={`w-1 h-10 rounded-full shrink-0 mt-0.5 sm:mt-0 ${
-        c.risk_score === 'red' ? 'bg-red-500' :
-        c.risk_score === 'yellow' ? 'bg-yellow-500' : c.risk_score === 'green' ? 'bg-green-500' : 'bg-slate-500'
-      }`} />
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <Link
-              aria-label={c.name}
-              href={`/company/${item.ico}`}
-              className="block font-semibold text-slate-100 hover:text-brand-400 transition-colors leading-tight break-words"
-            >
-              {item.alias || c.name}
-            </Link>
-            {item.alias && (
-              <span className="text-slate-500 text-xs hidden sm:block mt-0.5 break-words">({c.name})</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0 sm:hidden">
-            <Link
-              aria-label={c.name}
-              href={`/company/${item.ico}`}
-              className="btn-ghost p-1.5 opacity-100 transition-opacity"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Link>
-
-            <button
-              hidden={!onRemove}
-              onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
-              className="btn-ghost p-1.5 text-slate-600 hover:text-red-400 opacity-100 transition-all"
-              title={t('companyRow.removeFromWatchlist')}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-          <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded">{item.ico}</span>
-          {c.city && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" /> {c.city}
-            </span>
-          )}
-          {lastChecked && (
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" /> {lastChecked}
-            </span>
-          )}
-          {hasDebt && (
-            <span className="text-yellow-500">
-              {t('companyRow.debt', { value: formatCurrencyValue(totalDebt, locale) })}
-            </span>
-          )}
-          {c.court_cases > 0 && (
-            <span className="text-yellow-500">{t('companyRow.courts', { count: c.court_cases })}</span>
-          )}
-        </div>
-
-        <ScreeningSummary company={c} />
-        <div className="mt-2 flex items-center sm:hidden">
-          <RiskBadge score={c.risk_score} numericScore={c.risk_score_numeric} size="sm" />
+  return <article className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h3 className="font-semibold leading-snug text-slate-100">
+          <Link href={`/company/${item.ico}`} className="break-words hover:text-brand-400 focus-visible:underline">{alias || name}</Link>
+        </h3>
+        {alias && alias !== name && alias !== company.name && <p className="text-xs text-slate-400">{name}</p>}
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+          <span className="font-mono">IČO {item.ico}</span>
+          {company.city && <span>{company.city}</span>}
+          {Number.isFinite(checked) && <time dateTime={company.last_checked_at}>{t('assessment.checked', {
+            time: formatDistanceToNow(checked, {addSuffix: true, locale: toDateFnsLocale(locale)}),
+          })}</time>}
         </div>
       </div>
-
-      {/* Right side */}
-      <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 shrink-0 self-start sm:self-center">
-        <RiskBadge score={c.risk_score} numericScore={c.risk_score_numeric} size="sm" />
-
-        <Link
-          aria-label={c.name}
-              href={`/company/${item.ico}`}
-          className="btn-ghost p-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Link>
-
-        <button
-          hidden={!onRemove}
-              onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
-          className="btn-ghost p-1.5 text-slate-600 hover:text-red-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
-          title={t('companyRow.removeFromWatchlist')}
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
+      {onRemove && <button type="button" onClick={onRemove} className="btn-ghost shrink-0 p-2 hover:text-red-400"
+        aria-label={t('companyRow.removeFromWatchlist') + ' · ' + (alias || name)}><Trash2 size={16} /></button>}
     </div>
-  );
+    <div className="mt-3"><CompanyAssessment company={company} /></div>
+    {figures.length > 0 && <div className="mt-3 border-t border-slate-800 pt-2">
+      <p className="text-xs font-medium text-slate-400">{t('company.financialStatements')} {company.financial_year}</p>
+      <dl className="mt-1 grid gap-x-5 gap-y-1 sm:grid-cols-3">
+        {figures.map(field => <div key={field} className="flex flex-wrap justify-between gap-x-2 text-xs sm:block">
+          <dt className="text-slate-400">{t('company.metric.' + (field === 'profit' && company.profit! < 0 ? 'loss' : field))}</dt>
+          <dd className="font-medium tabular-nums text-slate-200">{formatCurrencyValue(field === 'profit' ? Math.abs(company[field]!) : company[field]!, locale)}</dd>
+        </div>)}
+      </dl>
+    </div>}
+    {!figures.length && (company.filing?.state === 'private' || company.filing?.state === 'no_public_filing') &&
+      <p className="mt-2 text-xs text-slate-400">{t('company.filing.' + company.filing.state)}</p>}
+    {debtSources.length > 0 && <dl className="mt-2 grid gap-1 text-xs">
+      {debtSources.map(source => <div key={source} className="flex flex-wrap justify-between gap-x-2">
+        <dt className="text-slate-400">{t('assessment.arrears.' + source)}
+          {company.data_quality?.debts?.[source]?.status === 'stale' && ' · ' + t('company.coverage.stale')}</dt>
+        <dd className="font-medium tabular-nums text-slate-200">{formatCurrencyValue(company[`${source}_debt`], locale)}</dd>
+      </div>)}
+    </dl>}
+  </article>;
 }

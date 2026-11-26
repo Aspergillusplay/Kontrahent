@@ -16,15 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import AppHeader from '../../../components/AppHeader';
-import type { Screening } from '../../../lib/company-types';
-
-function directoryAssessment(company: {last_checked_at?: string; risk_score?: string; screening?: Screening}, t: TranslateFn) {
-  if (!company.last_checked_at) return t('company.queued');
-  const labels: Record<string,string> = {partial:'risk.partial', red:'risk.critical', yellow:'risk.warning', green:'risk.safe'};
-  const label = t(labels[company.risk_score || ''] || 'risk.unknown');
-  const checks = Object.values(company.screening || {}).filter(value => typeof value === 'boolean');
-  return checks.length ? label + ' · ' + t('company.screeningResult', {passed: checks.filter(Boolean).length, checked: checks.length}) : label;
-}
+import CompanyAssessment from '../../../components/company/CompanyAssessment';
+import { compactCompanyName } from '../../../lib/company-assessment';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -248,9 +241,9 @@ export function SearchMainContent({
                   <tr key={c.ico} className="hover:bg-slate-800/30 transition-colors group">
                     <td className="px-4 py-3">
                       <Link href={`/company/${c.ico}`} className="font-medium text-slate-100 hover:text-brand-400 transition-colors">
-                        {c.name}
+                        {compactCompanyName(c.name)}
                       </Link>
-                      <div className="mt-1 text-xs text-slate-400">{directoryAssessment(c, t)}</div>
+                      <div className="mt-1"><CompanyAssessment company={c} /></div>
                     </td>
                     <td className="px-4 py-3 font-mono text-brand-400 text-xs">{c.ico}</td>
                     <td className="px-4 py-3 text-slate-400">{c.city || '—'}</td>
@@ -290,9 +283,8 @@ export function SearchMainContent({
               <div key={c.ico} className="card p-4 hover:border-slate-700 transition-colors">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <Link href={`/company/${c.ico}`} className="font-bold text-slate-100 hover:text-brand-400 transition-colors text-sm leading-tight">
-                    {c.name}
+                    {compactCompanyName(c.name)}
                   </Link>
-                  <span className="text-xs text-slate-400">{directoryAssessment(c, t)}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     {watchlist.includes(c.ico) ? (
                       <span className="text-green-400 text-xs flex items-center gap-1">
@@ -308,6 +300,7 @@ export function SearchMainContent({
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-slate-400">
+                  <div className="sm:col-span-2"><CompanyAssessment company={c} /></div>
                   <span className="font-mono text-brand-400">ICO: {c.ico}</span>
                   <span>
                     {c.city || ''}

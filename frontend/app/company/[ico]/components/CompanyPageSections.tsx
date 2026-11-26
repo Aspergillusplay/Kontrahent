@@ -21,9 +21,8 @@ export function CompanyBackHeader({ t }: CompanyBackHeaderProps) {
     <AppHeader
       maxWidthClassName="max-w-7xl"
       right={
-        <Link href="/dashboard" className="btn-ghost text-sm flex items-center gap-2">
+        <Link href="/dashboard" aria-label={t('common.back')} className="btn-ghost text-sm flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
-          <span className="sr-only">{t('common.back')}</span>
           <span className="hidden sm:inline">{t('common.back')}</span>
         </Link>
       }

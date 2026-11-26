@@ -7,6 +7,33 @@ const { CompaniesService } = require('../dist/companies/companies.service');
 const { mapLimit } = require('../dist/common/concurrency');
 const { validatePushSubscription } = require('../dist/notifications/push-subscription');
 const service = () => new CompaniesService({}, { get: () => undefined });
+const {selectAccountingUnit, registryTermination} = require('../dist/companies/utils/company-data.utils');
+
+test('a verified closed accounting unit has a dated status and no ongoing screening score', () => {
+  const ico = '47251549';
+  const unit = {ico, datumZrusenia: '2024-05-17', konsolidovana: false};
+  const quality = {version: 2, identity: {status: 'verified'}};
+  const record = {ico, name: 'BOTC LIMITED s.r.o.', raw_data: {data_quality: quality, ruz: {unit}, financials: {profit: -54, financial_year: '2022'}}};
+  const company = service().formatCompany(record);
+  assert.equal(company.termination_date, '2024-05-17');
+  assert.equal(company.screening, undefined);
+  assert.equal(company.risk_score_numeric, undefined);
+  assert.equal(company.profit, -54);
+  for (const change of [{ico: '12345678'}, {konsolidovana: true}, {datumZrusenia: '2024-02-31'}, {datumZrusenia: '2100-01-01'}])
+    assert.equal(registryTermination(ico, {...unit, ...change}), undefined);
+  assert.equal(service().formatCompany({...record, raw_data: {...record.raw_data, data_quality: {version: 0}}}).termination_date, undefined);
+});
+
+test('a closed historical unit cannot override an active individual unit with the same identifier', () => {
+  const ico = '12345678';
+  const current = {ico, id: 1};
+  const closed = {ico, id: 2, datumZrusenia: '2024-05-17'};
+  assert.equal(selectAccountingUnit(ico, [closed, current]), current);
+  assert.equal(selectAccountingUnit(ico, [current, closed]), current);
+  assert.equal(selectAccountingUnit(ico, [closed, {...current, konsolidovana: true}]), closed);
+  assert.equal(selectAccountingUnit(ico, [closed, null]), undefined);
+  assert.equal(selectAccountingUnit(ico, [closed, {...closed, id: 3}]), undefined);
+});
 const row = (label, values, tableName = '') => ({ label, values, tableName });
 
 test('a repaid debt replaces the old amount with zero', () => {
