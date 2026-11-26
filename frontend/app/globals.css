@@ -64,6 +64,31 @@
 }
 
 @layer components {
+  [data-assessment] { --status-fill: #536174; --status-edge: #94a3b8; --status-ink: #fff; }
+  [data-assessment='red'] { --status-fill: #ab3041; --status-edge: #fa6679; }
+  [data-assessment='yellow'] { --status-fill: #f2bc56; --status-edge: #e6a52b; --status-ink: #30200a; }
+  [data-assessment='green'] { --status-fill: #176047; --status-edge: #55cd99; }
+  [data-assessment='favourable'] { --status-fill: #16734f; --status-edge: #52cc92; }
+  [data-assessment='limited'] { --status-fill: #275f94; --status-edge: #65adf0; }
+  [data-assessment='closed'] { --status-fill: #694b92; --status-edge: #bb9ae6; }
+
+  .assessment-card {
+    @apply overflow-hidden rounded-xl border bg-slate-900;
+    border-color: color-mix(in srgb, var(--status-edge) 48%, rgb(var(--slate-800)));
+    border-inline-start: 4px solid var(--status-edge);
+  }
+  .company-assessment {
+    @apply inline-flex max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-tight;
+    background: var(--status-fill);
+    color: var(--status-ink);
+  }
+  .assessment-band { @apply flex w-full justify-between px-4 py-2.5 sm:px-5; }
+  .assessment-badge { @apply rounded-md px-2.5 py-1.5; }
+  .assessment-detail { @apply text-xs font-semibold tabular-nums; }
+  .assessment-total {
+    @apply rounded-xl border border-slate-700 bg-slate-900 p-3;
+    border-inline-start: 5px solid var(--status-fill);
+  }
   .risk-green { @apply text-green-400 bg-green-400/10 border-green-400/20; }
   .risk-yellow { @apply text-yellow-400 bg-yellow-400/10 border-yellow-400/20; }
   .risk-red { @apply text-red-400 bg-red-400/10 border-red-400/20; }

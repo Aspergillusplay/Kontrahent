@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import AppHeader from '../../../components/AppHeader';
 import CompanyAssessment from '../../../components/company/CompanyAssessment';
-import { compactCompanyName } from '../../../lib/company-assessment';
+import { assessmentGroup, compactCompanyName } from '../../../lib/company-assessment';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -280,38 +280,40 @@ export function SearchMainContent({
 
           <div className="md:hidden grid gap-3">
             {companies.map((c: any) => (
-              <div key={c.ico} className="card p-4 hover:border-slate-700 transition-colors">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <Link href={`/company/${c.ico}`} className="font-bold text-slate-100 hover:text-brand-400 transition-colors text-sm leading-tight">
-                    {compactCompanyName(c.name)}
-                  </Link>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {watchlist.includes(c.ico) ? (
-                      <span className="text-green-400 text-xs flex items-center gap-1">
-                        <Check className="w-3 h-3" />
-                      </span>
-                    ) : (
-                      <button aria-label={t('search.addToWatchlist') + ": " + c.name}
-                      disabled={!!addingIco}
-                      onClick={() => addToWatchlist(c.ico)} className="btn-primary py-1 px-2 text-xs flex items-center gap-1">
-                        <Plus className="w-3 h-3" /> {t('search.watch')}
-                      </button>
-                    )}
+              <div key={c.ico} data-assessment={assessmentGroup(c)} className="assessment-card">
+                <CompanyAssessment company={c} band />
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <Link href={`/company/${c.ico}`} className="font-bold text-slate-100 hover:text-brand-400 transition-colors text-sm leading-tight">
+                      {compactCompanyName(c.name)}
+                    </Link>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {watchlist.includes(c.ico) ? (
+                        <span className="text-green-400 text-xs flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                        </span>
+                      ) : (
+                        <button aria-label={t('search.addToWatchlist') + ": " + c.name}
+                        disabled={!!addingIco}
+                        onClick={() => addToWatchlist(c.ico)} className="btn-primary py-1 px-2 text-xs flex items-center gap-1">
+                          <Plus className="w-3 h-3" /> {t('search.watch')}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-slate-400">
-                  <div className="sm:col-span-2"><CompanyAssessment company={c} /></div>
-                  <span className="font-mono text-brand-400">ICO: {c.ico}</span>
-                  <span>
-                    {c.city || ''}
-                    {c.region ? `, ${c.region}` : ''}
-                  </span>
-                  {c.sales && (
-                    <span className="text-slate-300 font-medium">
-                      {t('search.salesLabel')}: {c.sales}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-slate-400">
+                    <span className="font-mono text-brand-400">ICO: {c.ico}</span>
+                    <span>
+                      {c.city || ''}
+                      {c.region ? `, ${c.region}` : ''}
                     </span>
-                  )}
-                  {c.employees && <span>{t('search.employeesLabel')}: {c.employees}</span>}
+                    {c.sales && (
+                      <span className="text-slate-300 font-medium">
+                        {t('search.salesLabel')}: {c.sales}
+                      </span>
+                    )}
+                    {c.employees && <span>{t('search.employeesLabel')}: {c.employees}</span>}
+                  </div>
                 </div>
               </div>
             ))}

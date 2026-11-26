@@ -1,22 +1,43 @@
 'use client';
 
+import { Archive, CircleCheck, CircleHelp, ClipboardList, Clock3, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { assessmentGroup, type AssessmentInput } from '../../lib/company-assessment';
 import { toIntlLocale } from '../../lib/i18n/formatters';
 import { useI18n } from '../../lib/i18n/provider';
-import RiskBadge from '../RiskBadge';
 
-export default function CompanyAssessment({company}: {company: AssessmentInput}) {
+const states = {
+  red: { icon: OctagonAlert, label: 'risk.critical' },
+  yellow: { icon: TriangleAlert, label: 'risk.warning' },
+  green: { icon: ShieldCheck, label: 'risk.safe' },
+  favourable: { icon: CircleCheck, label: 'assessment.favourable' },
+  limited: { icon: ClipboardList, label: 'assessment.incomplete' },
+  closed: { icon: Archive, label: 'assessment.closedCompany' },
+  unknown: { icon: CircleHelp, label: 'assessment.unknown' },
+};
+
+export default function CompanyAssessment({company, band = false}: {company: AssessmentInput; band?: boolean}) {
   const {t, locale} = useI18n();
   const group = assessmentGroup(company);
-  const classes = 'inline-flex max-w-full rounded-md border px-2 py-1 text-xs font-medium leading-snug';
+  const queued = group === 'unknown' && !company.last_checked_at;
+  const Icon = queued ? Clock3 : states[group].icon;
+  const checks = Object.values(company.screening || {}).filter(value => typeof value === 'boolean');
+  let detail: string | undefined;
   if (group === 'closed') {
     const date = new Intl.DateTimeFormat(toIntlLocale(locale), {dateStyle: 'medium', timeZone: 'UTC'}).format(new Date(company.termination_date!));
-    return <span className={classes + ' border-slate-600 bg-slate-800 text-slate-200'}>{t('assessment.closedOn', {date})}</span>;
+    detail = t('assessment.registryDate', {date});
+  } else if (group === 'favourable' || group === 'limited') {
+    detail = t('assessment.checkCount', {checked: checks.length});
+  } else if (group === 'yellow' && company.risk_score !== 'yellow') {
+    detail = t('assessment.adverse', {adverse: checks.filter(value => !value).length, checked: checks.length});
+  } else if ((group === 'red' || group === 'yellow' || group === 'green') && Number.isFinite(company.risk_score_numeric)) {
+    detail = t('assessment.score', {score: company.risk_score_numeric!});
   }
-  if (company.last_checked_at && (company.risk_score === 'red' || company.risk_score === 'yellow' || company.risk_score === 'green'))
-    return <RiskBadge score={company.risk_score} numericScore={company.risk_score_numeric} size="sm" />;
-  const checks = Object.values(company.screening || {}).filter(value => typeof value === 'boolean');
-  const key = group === 'yellow' ? 'assessment.adverse' : group === 'unknown' && !company.last_checked_at ? 'company.queued' : 'assessment.' + group;
-  const color = group === 'favourable' ? 'border-teal-500/30 text-teal-300' : group === 'yellow' ? 'border-yellow-500/30 text-yellow-400' : 'border-slate-700 text-slate-300';
-  return <span className={classes + ' ' + color}>{t(key, {checked: checks.length, adverse: checks.filter(value => !value).length})}</span>;
+
+  return <span data-assessment={group} className={'company-assessment ' + (band ? 'assessment-band' : 'assessment-badge')}>
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <Icon aria-hidden="true" size={18} strokeWidth={2.4} className="shrink-0" />
+      <strong>{t(queued ? 'company.queued' : states[group].label)}</strong>
+    </span>
+    {detail && <span className="assessment-detail">{detail}</span>}
+  </span>;
 }
