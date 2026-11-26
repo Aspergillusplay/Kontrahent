@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import {
   AlertTriangle,
-  ArrowLeft,
   Calendar,
   Clock,
   History,
@@ -12,7 +11,7 @@ import {
   RefreshCw,
   Zap,
 } from 'lucide-react';
-import RiskBadge from '../RiskBadge';
+import CompanyAssessment from './CompanyAssessment';
 import { CompanyDetails } from '../../lib/company-types';
 import { resolveRiskContainerClass } from './company-view.utils';
 import { useI18n } from '../../lib/i18n/provider';
@@ -55,33 +54,21 @@ export default function CompanyHeader({
         </div>
       )}
 
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-300 text-sm mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> {t('company.backToDashboard')}
-      </Link>
-
       <div className={`card border ${riskClass} mb-8`}>
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-3 flex-wrap">
-              <RiskBadge score={company.risk_score} numericScore={company.risk_score_numeric} size="lg" />
+              <CompanyAssessment company={company} />
               <span className="text-xs text-slate-500 font-mono bg-slate-800 px-2 py-1 rounded">ICO: {company.ico}</span>
               {company.important_dates?.bankruptcy && (
                 <span className="text-xs font-bold bg-red-500/20 text-red-400 px-2 py-1 rounded flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" /> {t('company.bankruptcySince', { value: company.important_dates.bankruptcy })}
                 </span>
               )}
-              {company.financial_year && (
-                <span className="text-xs font-bold bg-brand-500/20 text-brand-400 px-2 py-1 rounded flex items-center gap-1">
-                  <Calendar className="w-3 h-3" /> {t('company.financialYear', { value: company.financial_year })}
-                </span>
-              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold mb-1 break-words leading-tight tracking-tight text-slate-100">{company.name}</h1>
-            {company.historical_name && (
+            {company.historical_name && company.historical_name.trim() !== company.name.trim() && (
               <div className="flex items-center gap-2 text-slate-500 mb-4 text-xs font-medium">
                 <History className="w-3 h-3" />
                 <span>

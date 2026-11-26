@@ -54,6 +54,7 @@ export type CompanySearchResult = {
 };
 
 export type CompanyDetails = {
+  termination_date?: string;
   ico: string;
   name: string;
   legal_form: string;

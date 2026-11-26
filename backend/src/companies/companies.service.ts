@@ -5,7 +5,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CompanyRiskData } from './dto/company.dto';
 import {
-  buildDebtSummary, normalizeIco, requireIco, parseNumber,
+  buildDebtSummary, normalizeIco, requireIco, parseNumber, registryTermination, selectAccountingUnit,
   sanitizeDisplayAddress,
   sanitizeDisplayName,
 } from './utils/company-data.utils';
@@ -204,14 +204,18 @@ export class CompaniesService {
     if (!ids.length) return data;
     const [regions, sizes, evidence] = await Promise.all([
       this.getRuzRegionsMap(), this.getRuzOrgSizesMap(),
-      this.supabase.db.from('companies').select('ico,social_debt,quality:raw_data->data_quality,financials:raw_data->financials').in('ico', ids),
+      this.supabase.db.from('companies').select('ico,social_debt,quality:raw_data->data_quality,financials:raw_data->financials,unit_ico:raw_data->ruz->unit->>ico,closed:raw_data->ruz->unit->>datumZrusenia,consolidated:raw_data->ruz->unit->konsolidovana').in('ico', ids),
     ]);
     if (evidence.error) this.logger.warn('Directory indicator summary is temporarily unavailable');
-    const screenings = new Map((evidence.data || []).map(row => [row.ico, screenCompany(
-      row.quality as Parameters<typeof screenCompany>[0],
-      (row.financials || {}) as Parameters<typeof screenCompany>[1], parseNumber(row.social_debt),
-    )]));
-    return { ...data, companies: data.companies.map(row => ({...row, screening: screenings.get(row.ico), region: regions.get(row.region) || row.region,
+    const assessments = new Map((evidence.data || []).map(row => {
+      const quality = row.quality as Parameters<typeof screenCompany>[0];
+      const termination_date = quality?.version === 2 && quality.identity?.status === 'verified'
+        ? registryTermination(row.ico, {ico: row.unit_ico, datumZrusenia: row.closed, konsolidovana: row.consolidated === true}) : undefined;
+      const screening = termination_date ? undefined : screenCompany(quality,
+        (row.financials || {}) as Parameters<typeof screenCompany>[1], parseNumber(row.social_debt));
+      return [row.ico, {termination_date, screening}];
+    }));
+    return { ...data, companies: data.companies.map(row => ({...row, ...assessments.get(row.ico), region: regions.get(row.region) || row.region,
       employees: sizes.get(row.employees) || row.employees})) };
   }
 
@@ -521,11 +525,11 @@ export class CompaniesService {
 
   private async fetchFromRuz(ico: string): Promise<any> {
     try {
-      const ids = await this.fetchRuzUnitIds({ ico, maxRecords: 5 });
+      const ids = await this.fetchRuzUnitIds({ ico, maxRecords: 5, requireComplete: true });
       if (!ids.length) return {};
-
-      const unit = await this.fetchRuzUnitById(ids[0]);
-      if (!unit || normalizeIco(unit.ico) !== ico) return {};
+      const units = await Promise.all(ids.map(id => this.fetchRuzUnitById(id)));
+      const unit = selectAccountingUnit(ico, units);
+      if (!unit) return {};
 
       const [legalForms, regionMap, sizeMap] = await Promise.all([
         this.getRuzLegalFormsMap(),
@@ -759,6 +763,7 @@ export class CompaniesService {
 
   private async fetchRuzUnitIds(params: {
     ico?: string;
+    requireComplete?: boolean;
     legalForm?: string;
     maxRecords?: number;
     continueAfterId?: number;
@@ -779,6 +784,7 @@ export class CompaniesService {
       headers: this.requestHeaders, signal: this.requests.getStore(),
     });
 
+    if (params.requireComplete && data?.existujeDalsieId) return [];
     const ids = Array.isArray(data?.id)
       ? data.id
       : Array.isArray(data?.ids)
@@ -1173,6 +1179,7 @@ export class CompaniesService {
     const knownDebt = (source: string) => valid && ['verified','stale'].includes(d.data_quality?.debts?.[source]?.status) ? Number(row[source + '_debt']) || 0 : 0;
     const debtSummary = buildDebtSummary(undefined, { tax: knownDebt('tax'), social: knownDebt('social'), health: knownDebt('health') });
     const legalStatus = this.verifiedLegalStatus(row);
+    const terminationDate = valid && d.data_quality.identity?.status === 'verified' ? registryTermination(row.ico, d.ruz?.unit) : undefined;
     const risk = valid ? this.calculateRisk({ ...row, tax_debt: debtSummary.tax, social_debt: debtSummary.social, health_debt: debtSummary.health })
       : { risk_score: 'unknown' as const, risk_score_numeric: undefined, risk_reasons: ['Insufficient verified data for a complete risk assessment'] };
 
@@ -1186,12 +1193,13 @@ export class CompaniesService {
       address: displayAddress,
       city: row.city,
       status: legalStatus.status,
+      termination_date: terminationDate,
       filing: valid ? d.ruz?.filing : undefined,
       registry_unit_id: valid && Number.isSafeInteger(d.ruz?.unit?.id) ? d.ruz.unit.id : undefined,
       data_quality: d.data_quality || { version: 0, stale: true },
       risk_score: risk.risk_score,
-      screening: screenCompany(d.data_quality, f, parseNumber(row.social_debt)),
-      risk_score_numeric: risk.risk_score_numeric,
+      screening: terminationDate ? undefined : screenCompany(d.data_quality, f, parseNumber(row.social_debt)),
+      risk_score_numeric: terminationDate ? undefined : risk.risk_score_numeric,
       risk_reasons: risk.risk_reasons,
       tax_debt: debtSummary.tax,
       social_debt: debtSummary.social,

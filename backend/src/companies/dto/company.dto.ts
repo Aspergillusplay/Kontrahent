@@ -20,6 +20,7 @@ export interface RegistryCompany {
 }
 
 export interface CompanyRiskData {
+  termination_date?: string;
   ico: string;
   name: string;
   legal_form: string;
