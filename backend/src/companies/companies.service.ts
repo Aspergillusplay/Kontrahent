@@ -49,6 +49,7 @@ type BrowseCompanyItem = {
   source_url: string;
   last_checked_at: string | null;
   risk_score: string;
+  risk_score_numeric?: number;
 };
 
 type BrowseResult = {
@@ -204,7 +205,7 @@ export class CompaniesService {
     if (!ids.length) return data;
     const [regions, sizes, evidence] = await Promise.all([
       this.getRuzRegionsMap(), this.getRuzOrgSizesMap(),
-      this.supabase.db.from('companies').select('ico,social_debt,quality:raw_data->data_quality,financials:raw_data->financials,unit_ico:raw_data->ruz->unit->>ico,closed:raw_data->ruz->unit->>datumZrusenia,consolidated:raw_data->ruz->unit->konsolidovana').in('ico', ids),
+      this.supabase.db.from('companies').select('ico,risk_score,last_checked_at,social_debt,points:raw_data->risk_score_numeric,quality:raw_data->data_quality,financials:raw_data->financials,unit_ico:raw_data->ruz->unit->>ico,closed:raw_data->ruz->unit->>datumZrusenia,consolidated:raw_data->ruz->unit->konsolidovana').in('ico', ids),
     ]);
     if (evidence.error) this.logger.warn('Directory indicator summary is temporarily unavailable');
     const assessments = new Map((evidence.data || []).map(row => {
@@ -213,7 +214,14 @@ export class CompaniesService {
         ? registryTermination(row.ico, {ico: row.unit_ico, datumZrusenia: row.closed, konsolidovana: row.consolidated === true}) : undefined;
       const screening = termination_date ? undefined : screenCompany(quality,
         (row.financials || {}) as Parameters<typeof screenCompany>[1], parseNumber(row.social_debt));
-      return [row.ico, {termination_date, screening}];
+      const points = parseNumber(row.points);
+      const scored = quality?.version === 2 && !termination_date && ['red', 'yellow', 'green'].includes(row.risk_score);
+      return [row.ico, {
+        risk_score: quality?.version === 2 ? row.risk_score : 'unknown',
+        last_checked_at: quality?.version === 2 ? row.last_checked_at : null,
+        risk_score_numeric: scored && Number.isInteger(points) && points >= 1 && points <= 100 ? points : undefined,
+        termination_date, screening,
+      }];
     }));
     return { ...data, companies: data.companies.map(row => ({...row, ...assessments.get(row.ico), region: regions.get(row.region) || row.region,
       employees: sizes.get(row.employees) || row.employees})) };

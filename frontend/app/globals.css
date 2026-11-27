@@ -89,7 +89,6 @@
   .assessment-card {
     @apply overflow-hidden rounded-xl border bg-slate-900;
     border-color: color-mix(in srgb, var(--status-edge) 48%, rgb(var(--slate-800)));
-    border-inline-start: 4px solid var(--status-edge);
   }
   .company-assessment {
     @apply inline-flex max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-tight;
@@ -99,6 +98,17 @@
   .assessment-band { @apply flex w-full justify-between px-4 py-2.5 sm:px-5; }
   .assessment-badge { @apply rounded-md px-2.5 py-1.5; }
   .assessment-detail { @apply text-xs font-semibold tabular-nums; }
+  .assessment-scored {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .assessment-badge.assessment-scored { display: inline-grid; }
+  .assessment-scored > .assessment-detail { grid-column: 1; }
+  .assessment-points {
+    @apply flex flex-col items-end justify-center whitespace-nowrap;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
   .assessment-total {
     @apply rounded-xl border border-slate-700 bg-slate-900 p-3;
     border-inline-start: 5px solid var(--status-fill);

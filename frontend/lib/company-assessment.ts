@@ -12,6 +12,21 @@ export function assessmentGroup(company: AssessmentInput) {
   return checks.includes(true) ? 'limited' : 'unknown';
 }
 
+export function assessmentScore(company: AssessmentInput) {
+  if (company.termination_date || !company.last_checked_at) return undefined;
+  if (company.risk_score === 'red' || company.risk_score === 'yellow' || company.risk_score === 'green') {
+    const value = company.risk_score_numeric;
+    if (Number.isInteger(value) && value >= 1 && value <= 100) return {value, label: 'assessment.riskPoints'};
+    return undefined;
+  }
+  if (company.risk_score !== 'partial' || !company.screening) return undefined;
+  const {nonnegative_profit, positive_equity, no_social_arrears} = company.screening;
+  const indicators = [nonnegative_profit, positive_equity, no_social_arrears];
+  if (!indicators.every(value => typeof value === 'boolean')) return undefined;
+  const value = Math.max(1, Math.round(100 * indicators.filter(Boolean).length / indicators.length));
+  return {value, label: 'assessment.checkPoints'};
+}
+
 export function compactCompanyName(name: string) {
   return name.split(/;\s*skrátený názov\s*:/i)[0].trim() || name;
 }
